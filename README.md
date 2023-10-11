@@ -1,8 +1,10 @@
 # Israeli Red Alert Service for Home Assistant
-This script creates Home Assistant binary sensor to track the status of Red Alerts in Israel
+This script creates Home Assistant binary sensor to track the status of Red Alerts in Israel. 
 * **binary_sensor.oref_alert**: A binary sensor that is on if there is a Red Alert in Israel, and off otherwise. This binary sensor also contains attributes that can be used for numerous options (such as category, ID, title, data, and description).
 
 The script updates the sensors every 3 seconds, or more frequently if you specify a shorter scan interval. This sensor can be used in automations or to create sub-sensors/binary sensors from it.
+
+I tried different methods in Home Assistant, but this script worked best for my needs.
 
 This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9
 
