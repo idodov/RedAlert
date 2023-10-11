@@ -208,9 +208,8 @@ condition: []
 action:
   - service: notify.mobile_app_iphone15
     data:
-      message: >-
-        🚀 {{ state_attr('binary_sensor.oref_alert', 'title') }} - {{
-        state_attr('binary_sensor.oref_alert', 'data') }}
+      message: "{{ state_attr('binary_sensor.oref_alert', 'data') }}"
+      title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
 
@@ -227,8 +226,7 @@ condition: []
 action:
   - service: notify.mobile_app_iphone15
     data:
-      message: >-
-        🚀 {{ state_attr('binary_sensor.oref_alert', 'title') }} - {{
-        state_attr('binary_sensor.oref_alert', 'data') }}
+      message: "{{ state_attr('binary_sensor.oref_alert', 'data') }}"
+      title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
