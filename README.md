@@ -1,8 +1,7 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
-This script creates Home Assistant binary sensor to track the status of Red Alerts in Israel. 
-* **binary_sensor.oref_alert**: A binary sensor that is on if there is a Red Alert in Israel, and off otherwise. This binary sensor also contains attributes that can be used for numerous options (such as category, ID, title, data, and description).
+This script creates a Home Assistant binary sensor to track the status of Red Alerts in Israel. The sensor can be used in automations or to create sub-sensors/binary sensors from it.
 
-The script updates the sensors every 3 seconds, or more frequently if you specify a shorter scan interval. This sensor can be used in automations or to create sub-sensors/binary sensors from it.
+Installing this script will create a new Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also contains attributes that can be used for various purposes, such as category, ID, title, data, and description.
 
 *I tried different methods in Home Assistant, but this script worked best for my needs.*
 
@@ -12,7 +11,7 @@ This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cd
 1. Install the **AppDaemon** addon in Home Assistant.
 2. Go to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 ![Capture-0](https://github.com/idodov/RedAlert/assets/19820046/d5ff8960-7f30-4103-bbac-cb32fb3cadb9)
-3. Once AppDaemon is installed, enable the Auto-Start and Watchdog options.
+3. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
 4. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 5. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for ```latitude: 31.9837528``` & 
@@ -35,6 +34,7 @@ hadashboard:
 ```
 6. Create a file named **orefalert.py** in the **/config/appdaemon/apps/** directory.
 7. Paste the script code into the **orefalert.py** file and save it.
+The script updates the sensors every *3 seconds*, or more frequently if you specify a shorter scan interval. 
 ```
 import requests
 import time
@@ -43,7 +43,7 @@ import codecs
 from datetime import datetime
 from appdaemon.plugins.hass.hassapi import Hass
 
-# Scan every 3 sec
+# Scan every 3 seconds
 interval = 3 
 
 class OrefAlert(Hass):
@@ -128,7 +128,7 @@ orefalert:
   module: orefalert
   class: OrefAlert
 ```
-8. Restart the **AppDaemon** addon.
+8. Restart/Start the **AppDaemon** addon.
 
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
 
