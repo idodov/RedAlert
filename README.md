@@ -2,7 +2,7 @@
 This script creates Home Assistant binary sensor to track the status of Red Alerts in Israel
 * **binary_sensor.oref_alert**: A binary sensor that is on if there is a Red Alert in Israel, and off otherwise. This binary sensor also contains attributes that can be used for numerous options (such as category, ID, title, data, and description).
 
-The script updates the sensors every 3 seconds, or more frequently if you specify a shorter scan interval. These sensors can be used in automations or to create sub-sensors/binary sensors from them.
+The script updates the sensors every 3 seconds, or more frequently if you specify a shorter scan interval. This sensor can be used in automations or to create sub-sensors/binary sensors from it.
 
 This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9
 
@@ -118,7 +118,8 @@ orefalert:
 
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
 
-## binary_sensor.oref_alert data:
+# binary_sensor.oref_alert
+## data:
 ```
 id: '133413399870000000'
 cat: '1'
@@ -131,7 +132,7 @@ prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 prev_data: אזור תעשייה הדרומי אשקלון
 ```
 
-## display the binary_sensor.oref_alert attribues
+## display attributes
 ```
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
 {{ state_attr('binary_sensor.oref_alert', 'data') }} #רשימת ישובים
@@ -165,20 +166,20 @@ card:
 ## Trigger for automations or a new binary_sensor in a specific city or city-area (*) (output: true/false)
 (*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
 
-Example trigger - Tel Aviv Center:
+Example trigger or template value (for new binary_sensor) - Tel Aviv Center:
 `
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב - מרכז העיר") }}
 `
 
-Example trigger - Tel Aviv all areas:
+Example trigger or template value (for new binary_sensor) - Tel Aviv all areas:
 `
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 `
 
 For City names and areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
-## Automation exmaples
-Send notification when there is alert
+## Automation examples
+*Send notification when there is alert*
 ```
 alias: Notify attack
 description: ""
@@ -198,7 +199,7 @@ action:
 mode: single
 ```
 
-Check it there active alert in Tel Aviv
+*Check it there active alert in Tel Aviv*
 ```
 alias: Alert in TLV
 description: ''
