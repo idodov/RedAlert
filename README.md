@@ -153,7 +153,7 @@ prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 prev_data: כרם שלום
 ```
-## display attributes
+## Display attributes
 ```
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
 {{ state_attr('binary_sensor.oref_alert', 'data') }} #רשימת ישובים
@@ -168,6 +168,7 @@ prev_data: כרם שלום
 ```
 `
 ## lovelace card example
+Shows when there is an alert and where
 ```
 type: conditional
 conditions:
@@ -184,16 +185,16 @@ card:
   title: Red Alert
 ```
 
-## Trigger for automations or a new binary_sensor in a specific city or city-area (*) (output: true/false)
+## Trigger for automations or a new binary_sensor to specific city or city-area (*) (output: true/false)
 (*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
 
-**Example trigger or value template of binary sonsor - Tel Aviv city center:**
+**Example trigger or value template for binary sonsor - Tel Aviv city center:**
 
 `
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב - מרכז העיר") }}
 `
 
-**Example trigger or value template of binary sonsor - Tel Aviv all areas:**
+**Example trigger or value template for binary sonsor - Tel Aviv all areas:**
 
 `
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
