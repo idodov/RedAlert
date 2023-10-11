@@ -15,8 +15,10 @@ This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cd
 3. Once AppDaemon is installed, enable the Auto-Start and Watchdog options.
 4. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
-5. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section
+5. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for ```latitude: 31.9837528``` & 
+  ```longitude: 34.7359077``` & ```elevation: 2``` & ```time_zone: Asia/Jerusalem```. 
 ```
+---
 appdaemon:
   latitude: 31.9837528
   longitude: 34.7359077
@@ -130,8 +132,8 @@ orefalert:
 
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
 
-# binary_sensor.oref_alert
-## Example data (when there is active alert / state is on)
+# Usage *binary_sensor.oref_alert* for Home Assistant
+### Example data (when there is active alert / state is on)
 *prev_* saving data of the latest information when the sensor was on
 ```
 id: '133413399870000000'
@@ -242,3 +244,11 @@ action:
       title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
+
+## Creative ways to use the *binary_sensor.oref_alert*
+* Send a notification to your TV, phone, or other device.
+* Send a message to a LED matrix screen or other display.
+* Turn on or off lights, fans, or other devices.
+* Play a sound or music.
+* Trigger other automations.
+* You can be creative and come up with other ways to use the *binary_sensor.oref_alert* to protect yourself and your family in the event of a Red Alert.
