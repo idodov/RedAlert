@@ -116,7 +116,7 @@ orefalert:
 ```
 8. Restart the **AppDaemon** addon.
 
-Once the AppDaemon addon is restarted, the two new sensors will be created in Home Assistant. You can then use these sensors in automations or dashboards.
+Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
 
 ## binary_sensor.oref_alert data:
 ```
@@ -131,7 +131,7 @@ prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 prev_data: אזור תעשייה הדרומי אשקלון
 ```
 
-## binary_sensor.oref_alert attribues
+## display the binary_sensor.oref_alert attribues
 ```
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
 {{ state_attr('binary_sensor.oref_alert', 'data') }} #רשימת ישובים
@@ -162,13 +162,43 @@ card:
   title: Red Alert
 ```
 
-## trigger for automations or a new binary_sensor in a specific area (output: true/false)
+## Trigger for automations or a new binary_sensor in a specific city or city-area (*) (output: true/false)
+(*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
+
+Example trigger - Tel Aviv Center:
 `
-{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב - מרכז העיר") }} 
+{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב - מרכז העיר") }}
 `
 
-## Automation exmaple
-Check it there active alert in Tel Aviv (area)
+Example trigger - Tel Aviv all areas:
+`
+{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
+`
+
+For City names and areas: https://www.oref.org.il//12481-he/Pakar.aspx
+
+## Automation exmaples
+Send notification when there is alert
+```
+alias: Notify attack
+description: ""
+trigger:
+  - platform: state
+    entity_id:
+      - binary_sensor.oref_alert
+    from: "off"
+    to: "on"
+condition: []
+action:
+  - service: notify.mobile_app_iphone15
+    data:
+      message: >-
+        🚀 {{ state_attr('binary_sensor.oref_alert', 'title') }} - *{{
+        state_attr('binary_sensor.oref_alert', 'data') }}*
+mode: single
+```
+
+Check it there active alert in Tel Aviv
 ```
 alias: Alert in TLV
 description: ''
@@ -177,6 +207,14 @@ trigger:
     id: "TLV"
     value_template: >-
       {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }}
+condition: []
+action:
+  - service: notify.mobile_app_iphone15
+    data:
+      message: >-
+        🚀 {{ state_attr('binary_sensor.oref_alert', 'title') }} - *{{
+        state_attr('binary_sensor.oref_alert', 'data') }}*
+mode: single
 
 ....
 ```
