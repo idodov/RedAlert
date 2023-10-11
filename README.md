@@ -130,6 +130,7 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
 
 # binary_sensor.oref_alert
 ## Example data (when there is active alert / sensor state is on)
+*prev_* saving data of latest information when the sensor was on
 ```
 id: '133413399870000000'
 cat: '1'
