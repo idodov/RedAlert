@@ -121,7 +121,7 @@ orefalert:
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
 
 # binary_sensor.oref_alert
-## data (when there is active alert):
+## data (when there is active alert / sensor state is on)
 ```
 id: '133413399870000000'
 cat: '1'
@@ -133,17 +133,17 @@ prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 prev_data: אזור תעשייה הדרומי אשקלון
 ```
-## data (when there is no active alert):
+## example data (when there is no active alert / sensor state is off):
 ```
-id: none
-cat: none
-title: none
-data: none
-desc: none
+id: null
+cat: null
+title: null
+desc: null
+data: null
 prev_cat: '1'
 prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-prev_data: אזור תעשייה הדרומי אשקלון
+prev_data: כרם שלום
 ```
 ## display attributes
 ```
