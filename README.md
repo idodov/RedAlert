@@ -1,4 +1,4 @@
-# Israeli Red Alert Service for Home Assistant
+# Israeli Red Alert Service for Home Assistant (AppDaemon)
 This script creates Home Assistant binary sensor to track the status of Red Alerts in Israel. 
 * **binary_sensor.oref_alert**: A binary sensor that is on if there is a Red Alert in Israel, and off otherwise. This binary sensor also contains attributes that can be used for numerous options (such as category, ID, title, data, and description).
 
@@ -129,8 +129,8 @@ orefalert:
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
 
 # binary_sensor.oref_alert
-## Example data (when there is active alert / sensor state is on)
-*prev_* saving data of latest information when the sensor was on
+## Example data (when there is active alert / state is on)
+*prev_* saving data of the latest information when the sensor was on
 ```
 id: '133413399870000000'
 cat: '1'
@@ -142,7 +142,7 @@ prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 prev_data: אזור תעשייה הדרומי אשקלון
 ```
-## Example data (when there is no active alert / sensor state is off):
+## Example data (when there is no active alert / state is off):
 ```
 id: null
 cat: null
@@ -169,7 +169,7 @@ prev_data: כרם שלום
 ```
 `
 ## lovelace card example
-Shows when there is an alert and where
+Shows if there is an alert and where
 ```
 type: conditional
 conditions:
