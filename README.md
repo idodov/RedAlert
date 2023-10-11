@@ -13,6 +13,7 @@ This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cd
 2. Go to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 3. Once AppDaemon is installed, enable the Auto-Start and Watchdog options.
 4. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
+![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 5. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section
 ```
 appdaemon:
