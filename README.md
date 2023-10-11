@@ -171,7 +171,6 @@ prev_data: כרם שלום
 {{ state_attr('binary_sensor.oref_alert', 'prev_desc') }} #הסבר התגוננות אחרון
 {{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
 ```
-`
 ## lovelace card example
 Shows if there is an alert and where
 ```
@@ -190,7 +189,7 @@ card:
   title: Red Alert
 ```
 
-## Trigger for automations or a new binary_sensor to specific city or city-area (*) (output: true/false)
+## Red Alert Trigger for Specific City or City-Area (*)
 (*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
 
 **Example trigger or value template for binary sonsor - Tel Aviv city center:**
@@ -206,7 +205,6 @@ card:
 `
 
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
-
 ## Automation examples
 *Send notification when there is alert in Israel (all cities)*
 ```
@@ -226,7 +224,6 @@ action:
       title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
-
 *Send notification when there is active alert in Tel Aviv (all areas)*
 ```
 alias: Alert in TLV
@@ -244,11 +241,9 @@ action:
       title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
-
 ## Creative ways to use the *binary_sensor.oref_alert*
-* Send a notification to your TV, phone, or other device.
+* Send a notification to your TV (while watching Netflix), phone, or other device.
 * Send a message to a LED matrix screen or other display.
 * Turn on or off lights, fans, or other devices.
 * Play a sound or music.
-* Trigger other automations.
 * You can be creative and come up with other ways to use the *binary_sensor.oref_alert* to protect yourself and your family in the event of a Red Alert.
