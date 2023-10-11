@@ -20,6 +20,14 @@ appdaemon:
   longitude: 34.7359077
   elevation: 2
   time_zone: Asia/Jerusalem
+  plugins:
+    HASS:
+      type: hass
+http:
+  url: http://127.0.0.1:5050
+admin:
+api:
+hadashboard:
 ```
 6. Create a file named **orefalert.py** in the **/config/appdaemon/apps/** directory.
 7. Paste the script code into the **orefalert.py** file and save it.
