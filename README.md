@@ -168,12 +168,14 @@ card:
 ## Trigger for automations or a new binary_sensor in a specific city or city-area (*) (output: true/false)
 (*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
 
-Example trigger or template value (for new binary_sensor) - Tel Aviv city center:
+Example trigger or value template of binary sonsor - Tel Aviv city center:
+
 `
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב - מרכז העיר") }}
 `
 
-Example trigger or template value (for new binary_sensor) - Tel Aviv all areas:
+Example trigger or value template of binary sonsor - Tel Aviv all areas:
+
 `
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 `
@@ -181,7 +183,7 @@ Example trigger or template value (for new binary_sensor) - Tel Aviv all areas:
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
 ## Automation examples
-*Send notification when there is alert*
+*Send notification when there is alert in Israel (all cities)*
 ```
 alias: Notify attack
 description: ""
@@ -201,7 +203,7 @@ action:
 mode: single
 ```
 
-*Check it there is active alert in Tel Aviv (all areas)*
+*Send notification when there is active alert in Tel Aviv (all areas)*
 ```
 alias: Alert in TLV
 description: ''
