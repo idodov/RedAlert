@@ -14,6 +14,7 @@ This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cd
 4. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
 
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
+
 5. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for ```latitude: 31.9837528``` & 
   ```longitude: 34.7359077``` & ```elevation: 2``` & ```time_zone: Asia/Jerusalem```. 
 ```
