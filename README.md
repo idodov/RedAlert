@@ -5,6 +5,13 @@ Installing this script will create a new Home Assistant entity called ***binary_
 
 *I tried different methods in Home Assistant, but this script worked best for my needs.*
 
+## Creative ways to use the *binary_sensor.oref_alert*
+* Send a notification to your TV (while watching Netflix), phone, or other device.
+* Send a message to a LED matrix screen or other display.
+* Turn on or off lights, fans, or other devices.
+* Play a sound or music.
+* You can be creative and come up with other ways to use the *binary_sensor.oref_alert* to protect yourself and your family in the event of a Red Alert.
+
 This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9
 
 # Installation Instructions
@@ -70,8 +77,7 @@ class OrefAlert(Hass):
                         if 'data' in data and data['data']:
                             alert_title = data.get('title', '')
                             alerts_data = ', '.join(data['data'])
-
-# Create or update binary_sensor with attributes
+                            data_count = data['data'].count() if data['data'] else 0
                             self.set_state(
                                 "binary_sensor.oref_alert",
                                 state="on",
@@ -81,6 +87,7 @@ class OrefAlert(Hass):
                                     "title": alert_title,
                                     "desc": data.get('desc', None),
                                     "data": alerts_data,
+                                    "data_count": data_count,
                                     "last_changed": datetime.now().isoformat(),
                                     "prev_cat": data.get('cat', None),
                                     "prev_title": alert_title,
@@ -100,6 +107,7 @@ class OrefAlert(Hass):
                                     "title": None,
                                     "desc": None,
                                     "data": None,
+                                    "data_count": 0,
                                     "last_changed": datetime.now().isoformat(),
                                 },
                             )
@@ -116,6 +124,7 @@ class OrefAlert(Hass):
                             "title": None,
                             "desc": None,
                             "data": None,
+                            "data_count": 0,
                         },
                     )
             else:
@@ -166,6 +175,7 @@ prev_data: כרם שלום
 {{ state_attr('binary_sensor.oref_alert', 'desc') }} #הסבר התגוננות
 {{ state_attr('binary_sensor.oref_alert', 'cat') }} #קטגוריה
 {{ state_attr('binary_sensor.oref_alert', 'id') }} #מספר ייחודי
+{{ state_attr('binary_sensor.oref_alert', 'data_count') }} #מספר התרעות פעילות
 
 {{ state_attr('binary_sensor.oref_alert', 'prev_title') }} #כותרת אחרונה שהיתה פעילה
 {{ state_attr('binary_sensor.oref_alert', 'prev_data') }} #רשימת ישובים אחרונים
@@ -242,9 +252,3 @@ action:
       title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
-## Creative ways to use the *binary_sensor.oref_alert*
-* Send a notification to your TV (while watching Netflix), phone, or other device.
-* Send a message to a LED matrix screen or other display.
-* Turn on or off lights, fans, or other devices.
-* Play a sound or music.
-* You can be creative and come up with other ways to use the *binary_sensor.oref_alert* to protect yourself and your family in the event of a Red Alert.
