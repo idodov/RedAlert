@@ -187,13 +187,8 @@ prev_data: כרם שלום
 ## lovelace card example
 Shows if there is an alert, how many alerts are active and where
 ```
-type: conditional
-conditions:
-  - entity: binary_sensor.oref_alert
-    state: 'on'
-card:
-  type: markdown
-  content: |-
+type: markdown
+content: |-
     <center>
     {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
       {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}
@@ -204,11 +199,13 @@ card:
     {% else %}
       אין התרעות פעילות
     {% endif %}
+     {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
     <big>{{ state_attr('binary_sensor.oref_alert', 'data') }}</big>
 
     ** {{ state_attr('binary_sensor.oref_alert', 'desc') }}**
+    {% endif %}
     </center>
-  title: Red Alert
+title: Red Alert
 ```
 
 ## Red Alert Trigger for Specific City or City-Area (*)
