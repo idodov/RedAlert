@@ -151,6 +151,7 @@ cat: '1'
 title: ירי רקטות וטילים
 data: אזור תעשייה הדרומי אשקלון
 desc: היכנסו למרחב המוגן ושהו בו 10 דקות
+data_count: 1
 prev_cat: '1'
 prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
@@ -163,6 +164,7 @@ cat: null
 title: null
 desc: null
 data: null
+data_count: 0
 prev_cat: '1'
 prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
@@ -183,7 +185,7 @@ prev_data: כרם שלום
 {{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
 ```
 ## lovelace card example
-Shows if there is an alert and where
+Shows if there is an alert, how many alerts are active and where
 ```
 type: conditional
 conditions:
@@ -193,9 +195,18 @@ card:
   type: markdown
   content: |-
     <center>
+    {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
+      {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}
+        {{ state_attr('binary_sensor.oref_alert', 'data_count') }} התרעות פעילות
+      {% elif state_attr('binary_sensor.oref_alert', 'data_count') == 1 %}
+        התרעה פעילה אחת
+      {% endif %}
+    {% else %}
+      אין התרעות פעילות
+    {% endif %}
     <big>{{ state_attr('binary_sensor.oref_alert', 'data') }}</big>
 
-    **{{ state_attr('binary_sensor.oref_alert', 'desc') }}**
+    ** {{ state_attr('binary_sensor.oref_alert', 'desc') }}**
     </center>
   title: Red Alert
 ```
