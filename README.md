@@ -159,6 +159,7 @@ prev_cat: '1'
 prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 prev_data: אזור תעשייה הדרומי אשקלון
+prev_data_count: 1
 ```
 ## Example data (when there is no active alert / state is off):
 ```
@@ -167,11 +168,12 @@ cat: null
 title: null
 desc: null
 data: null
-data_count: 0
 prev_cat: '1'
 prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-prev_data: כרם שלום
+prev_data: מטולה
+data_count: 0
+prev_data_count: 1
 ```
 ## Display attributes
 ```
@@ -186,6 +188,7 @@ prev_data: כרם שלום
 {{ state_attr('binary_sensor.oref_alert', 'prev_data') }} #רשימת ישובים אחרונים
 {{ state_attr('binary_sensor.oref_alert', 'prev_desc') }} #הסבר התגוננות אחרון
 {{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
+{{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} # מספר התרעות בו זמנית קודמות
 ```
 ## lovelace card example
 Shows if there is an alert, how many alerts are active and where
