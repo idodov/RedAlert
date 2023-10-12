@@ -77,7 +77,7 @@ class OrefAlert(Hass):
                         if 'data' in data and data['data']:
                             alert_title = data.get('title', '')
                             alerts_data = ', '.join(data['data'])
-                            data_count = len(data['data'])
+                            data_count = len(data['data'].split(','))
                             self.set_state(
                                 "binary_sensor.oref_alert",
                                 state="on",
