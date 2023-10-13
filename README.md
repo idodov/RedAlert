@@ -3,7 +3,7 @@
 
 Installing this script will create a new Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also contains attributes that can be used for various purposes, such as category, ID, title, data, and description.
 
-### Why did I choose this method?
+### Why did I choose this method and not REST sensor?
 Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. 
 
 While the binary sensor's state switches to 'on' when there is an active alert in Israel behavior may not suit everyone, The sensor is designed with additional attributes containing data such as cities, types of attacks and more. These attributes make it easy to create customized sub-sensors to meet individual requirements. For example, you can set up specific sensors that activate only when an alarm pertains to a particular city or area.
@@ -199,7 +199,7 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
 
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
-# Usage *binary_sensor.oref_alert* for Home Assistant
+## Usage *binary_sensor.oref_alert* for Home Assistant
 ### Example data (when there is active alert / state is on)
 ```
 id: '133413399870000000'
@@ -209,7 +209,7 @@ data: אזור תעשייה הדרומי אשקלון
 desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 data_count: 1
 ```
-## Example data (when there is no active alert / state is off):
+### Example data (when there is no active alert / state is off):
 ```
 id: null
 cat: null
@@ -264,7 +264,7 @@ content: |-
 title: Red Alert
 ```
 ## Automation examples
-*Send notification when there is alert in Israel (all cities)*
+### *Send notification when there is alert in Israel (all cities)*
 ```
 alias: Notify attack
 description: ""
@@ -282,22 +282,24 @@ action:
       title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
-*Change light color when there is active alert in Tel Aviv (all areas)*
+### *Change lights color when there is active alert in Tel Aviv (all areas)*
 ```
 alias: Alert in TLV
-description: ''
+description: "When an alert occurs in Tel Aviv, the lights will cyclically change to red and blue for a duration of 30 seconds, after which they will revert to their previous states"
 trigger:
   - platform: template
-    id: "TLV"
+    id: TLV
     value_template: >-
       {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }}
 condition: []
 action:
   - service: scene.create
     data:
-      scene_id: before
+      scene_id: before_oref_alert
       snapshot_entities:
-        - light.bulb_ball
+        - light.#light-1#
+        - light.#light-2#
+        - light.#light-3#
   - repeat:
       count: 30
       sequence:
@@ -305,7 +307,10 @@ action:
           data:
             color_name: blue
           target:
-            entity_id: light.#your color light#
+            entity_id: 
+            - light.#light-1#
+            - light.#light-2#
+            - light.#light-3#
         - delay:
             hours: 0
             minutes: 0
@@ -315,27 +320,18 @@ action:
           data:
             color_name: red
           target:
-            entity_id: light.#your color light#
+            entity_id: 
+            - light.#light-1#
+            - light.#light-2#
+            - light.#light-3#
         - delay:
             hours: 0
             minutes: 0
             seconds: 0
             milliseconds: 500
-  - delay:
-      hours: 0
-      minutes: 0
-      seconds: 40
-      milliseconds: 0
   - service: scene.turn_on
     data: {}
     target:
-      entity_id: scene.before
+      entity_id: scene.before_oref_alert
 mode: single
-
-
-
-
-
-
-
 ```
