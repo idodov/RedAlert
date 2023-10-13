@@ -15,8 +15,17 @@ I tried various methods in Home Assistant, but this script worked best for my ne
 ![Capture](https://github.com/idodov/RedAlert/assets/19820046/79adf8ff-1369-472b-a463-0c1fe82a9c4d)
 ![Capture--](https://github.com/idodov/RedAlert/assets/19820046/2cdee4bb-0849-4dc1-bb78-c2e282300fdd)
 
-
 The sensor's icon and name, which are displayed on the dashboard using the default entity card, are dynamic and will change every time there is an alert. For example, it may show a rocket icon during a rocket attack.
+
+You can create numerous automations triggered by the binary sensor or its associated sub-sensors. For instance, one of the possibilities is sending alert messages to an LED matrix screen. 
+
+*As an example, forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen.*
+
+![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
+
+*As another illustration, you can configure your lights to change colors repeatedly while the alert is active.*
+
+![20231013_221552](https://github.com/idodov/RedAlert/assets/19820046/6e60d5ca-12a9-4fd2-9b10-bcb19bf38a6d)
 
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant.
@@ -290,10 +299,4 @@ action:
       title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
-You can create numerous automations triggered by the binary sensor or its associated sub-sensors. For instance, one of the possibilities is sending alert messages to an LED matrix screen. 
-
-*As an example, forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen.*
-
-![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
-
 
