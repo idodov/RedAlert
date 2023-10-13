@@ -237,6 +237,7 @@ prev_data_count: 1
 "prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
 
 *The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor before installation. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**State template**' field, input '**off**.' **submit** your settings to save your new helper*
+
 ![b1](https://github.com/idodov/RedAlert/assets/19820046/e451fa8c-789b-4e88-ab98-4687b65f058e)
 
 ## Display attributes
