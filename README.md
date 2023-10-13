@@ -206,6 +206,9 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
 ```
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
+You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers.' > 'Create' > 'Template' > 'Template Binary sensor'** 
+![b2](https://github.com/idodov/RedAlert/assets/19820046/ce3f4144-0051-40a5-ac2a-7e205e239c21)
+
 ## Usage *binary_sensor.oref_alert* for Home Assistant
 ### Example data (when there is active alert / state is on)
 ```
@@ -232,7 +235,9 @@ prev_data_count: 1
 ```
 "prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
 
-*The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor before installation. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**State template**' field, input '**off**.' **subbmit** your settings and save your new helper*
+*The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor before installation. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**State template**' field, input '**off**.' **submit** your settings to save your new helper*
+![b1](https://github.com/idodov/RedAlert/assets/19820046/e451fa8c-789b-4e88-ab98-4687b65f058e)
+
 ## Display attributes
 ```
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
