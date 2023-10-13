@@ -224,6 +224,7 @@ data_count: 0
 prev_data_count: 1
 ```
 "prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
+*The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor before installation. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**Template Value**' field, input '**off**.' Save your settings*
 ## Display attributes
 ```
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
@@ -240,7 +241,7 @@ prev_data_count: 1
 {{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} # מספר התרעות בו זמנית קודמות
 ```
 ## lovelace card example
-Shows if there is an alert, how many alerts are active and where
+Displays whether there is an alert, the number of active alerts, and their respective locations.
 ![Capture111](https://github.com/idodov/RedAlert/assets/19820046/d5d5a3d2-db56-43cb-841d-96f7ec226a08)
 ```
 type: markdown
@@ -264,7 +265,7 @@ content: |-
 title: Red Alert
 ```
 ## Automation examples
-### *Send notification when there is alert in Israel (all cities)*
+### *Send a notification to the phone (Home Assistant app) when there is an alert in Israel (all cities)*
 ```
 alias: Notify attack
 description: ""
@@ -282,7 +283,7 @@ action:
       title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
-### *Change lights color when there is active alert in Tel Aviv (all areas)*
+### *Change the light color when there is an active alert in all areas of Tel Aviv*
 ```
 alias: Alert in TLV
 description: "When an alert occurs in Tel Aviv, the lights will cyclically change to red and blue for a duration of 30 seconds, after which they will revert to their previous states"
