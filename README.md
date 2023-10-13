@@ -224,7 +224,8 @@ data_count: 0
 prev_data_count: 1
 ```
 "prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
-*The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor before installation. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**Template Value**' field, input '**off**.' Save your settings*
+
+*The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor before installation. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**State template**' field, input '**off**.' **subbmit** your settings and save your new helper*
 ## Display attributes
 ```
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
