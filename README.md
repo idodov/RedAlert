@@ -6,7 +6,7 @@ Installing this script will create a new Home Assistant entity called ***binary_
 ### Why did I choose this method?
 Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. 
 
-While the binary sensor's state switches to 'on' when there is an active alert in Israel, this default behavior may not suit everyone. The sensor is designed with additional attributes containing data such as cities, types of attacks, and more. These attributes make it easy to create customized sub-sensors to meet individual requirements. For example, you can set up specific sensors that activate only when an alarm pertains to a particular city or area.
+While the binary sensor's state switches to 'on' when there is an active alert in Israel behavior may not suit everyone, The sensor is designed with additional attributes containing data such as cities, types of attacks and more. These attributes make it easy to create customized sub-sensors to meet individual requirements. For example, you can set up specific sensors that activate only when an alarm pertains to a particular city or area.
 
 I tried various methods in Home Assistant, but this script worked best for my needs.
 
@@ -46,7 +46,7 @@ hadashboard:
 ```
 6. Create a file named **orefalert.py** in the **/config/appdaemon/apps/** directory.
 7. Paste the script code into the **orefalert.py** file and save it.
-The script updates the sensors every *3 seconds*, or more frequently if you specify a shorter scan interval. 
+The script updates the sensors every *3 seconds*, or more frequently if you specify a shorter scan ```interval```. 
 ```
 import requests
 import time
@@ -192,7 +192,6 @@ For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
 # Usage *binary_sensor.oref_alert* for Home Assistant
 ### Example data (when there is active alert / state is on)
-*prev_* saving data of the latest information when the sensor was on
 ```
 id: '133413399870000000'
 cat: '1'
@@ -200,11 +199,6 @@ title: ירי רקטות וטילים
 data: אזור תעשייה הדרומי אשקלון
 desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 data_count: 1
-prev_cat: '1'
-prev_title: ירי רקטות וטילים
-prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-prev_data: אזור תעשייה הדרומי אשקלון
-prev_data_count: 1
 ```
 ## Example data (when there is no active alert / state is off):
 ```
@@ -220,6 +214,7 @@ prev_data: מטולה
 data_count: 0
 prev_data_count: 1
 ```
+"prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
 ## Display attributes
 ```
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
@@ -294,3 +289,8 @@ action:
       title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
+You can create numerous automations triggered by the binary sensor or its associated sub-sensors. For instance, one of the possibilities is sending alert messages to an LED matrix screen. 
+
+*As an example, forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen.*
+
+![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
