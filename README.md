@@ -1,18 +1,22 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
-This script creates a Home Assistant binary sensor to track the status of Red Alerts in Israel. The sensor can be used in automations or to create sub-sensors/binary sensors from it.
+**This script creates a Home Assistant binary sensor to track the status of Red Alerts in Israel. The sensor can be used in automations or to create sub-sensors/binary sensors from it.**
 
 Installing this script will create a new Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also contains attributes that can be used for various purposes, such as category, ID, title, data, and description.
 
-*I tried different methods in Home Assistant, but this script worked best for my needs.*
+### Why did I choose this method?
+Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. 
 
-## Creative ways to use the *binary_sensor.oref_alert*
-* Send a notification to your TV (while watching Netflix), phone, or other device.
-* Send a message to a LED matrix screen or other display.
-* Turn on or off lights, fans, or other devices.
-* Play a sound or music.
-* You can be creative and come up with other ways to use the *binary_sensor.oref_alert* to protect yourself and your family in the event of a Red Alert.
+While the binary sensor's state switches to 'on' when there is an active alert in Israel, this default behavior may not suit everyone. The sensor is designed with additional attributes containing data such as cities, types of attacks, and more. These attributes make it easy to create customized sub-sensors to meet individual requirements. For example, you can set up specific sensors that activate only when an alarm pertains to a particular city or area.
 
-This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9
+I tried various methods in Home Assistant, but this script worked best for my needs.
+
+*This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9*
+
+![Capture](https://github.com/idodov/RedAlert/assets/19820046/79adf8ff-1369-472b-a463-0c1fe82a9c4d)
+![Capture--](https://github.com/idodov/RedAlert/assets/19820046/2cdee4bb-0849-4dc1-bb78-c2e282300fdd)
+
+
+The sensor's icon and name, which are displayed on the dashboard using the default entity card, are dynamic and will change every time there is an alert. For example, it may show a rocket icon during a rocket attack.
 
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant.
@@ -66,6 +70,22 @@ class OrefAlert(Hass):
             'X-Requested-With': 'XMLHttpRequest',
             'Content-Type': 'application/json',
         }
+        icons = {
+        1: "mdi:rocket-launch",
+        2: "mdi:home-alert",
+        3: "mdi:earth-box",
+        4: "mdi:chemical-weapon",
+        5: "mdi:waves",
+        6: "mdi:airplane",
+        7: "mdi:skull",
+        8: "mdi:alert",
+        9: "mdi:alert",
+        10: "mdi:alert",
+        11: "mdi:alert",
+        12: "mdi:alert",
+        13: "mdi:run-fast",
+        }
+        icon_alert = "mdi:alert"
 
         try:
             response = requests.get(url, headers=headers)
@@ -77,6 +97,7 @@ class OrefAlert(Hass):
                         if 'data' in data and data['data']:
                             alert_title = data.get('title', '')
                             alerts_data = ', '.join(data['data'])
+                            icon_alert = icons.get(int(data.get('cat', 1)), "mdi:alert")
                             if isinstance(alerts_data, str):
                                 data_count = len(alerts_data.split(','))
                             else:
@@ -97,6 +118,8 @@ class OrefAlert(Hass):
                                     "prev_desc": data.get('desc', None),
                                     "prev_data": alerts_data,
                                     "prev_last_changed": datetime.now().isoformat(),
+                                    "icon": icon_alert,
+                                    "friendly_name": alert_title,
                                 },
                             )
                         else:
@@ -112,6 +135,8 @@ class OrefAlert(Hass):
                                     "data": None,
                                     "data_count": 0,
                                     "last_changed": datetime.now().isoformat(),
+                                    "icon": icon_alert,
+                                    "friendly_name": "אין התרעות",
                                 },
                             )
                     except json.JSONDecodeError:
@@ -128,6 +153,8 @@ class OrefAlert(Hass):
                             "desc": None,
                             "data": None,
                             "data_count": 0,
+                            "icon": icon_alert,
+                            "friendly_name": "אין התרעות",
                         },
                     )
             else:
