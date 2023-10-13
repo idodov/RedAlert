@@ -276,13 +276,13 @@ trigger:
     to: "on"
 condition: []
 action:
-  - service: notify.mobile_app_iphone15
+  - service: notify.mobile_app_#your phone#
     data:
       message: "{{ state_attr('binary_sensor.oref_alert', 'data') }}"
       title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
-*Send notification when there is active alert in Tel Aviv (all areas)*
+*Change light color when there is active alert in Tel Aviv (all areas)*
 ```
 alias: Alert in TLV
 description: ''
@@ -293,9 +293,49 @@ trigger:
       {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }}
 condition: []
 action:
-  - service: notify.mobile_app_iphone15
+  - service: scene.create
     data:
-      message: "{{ state_attr('binary_sensor.oref_alert', 'data') }}"
-      title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
+      scene_id: before
+      snapshot_entities:
+        - light.bulb_ball
+  - repeat:
+      count: 30
+      sequence:
+        - service: light.turn_on
+          data:
+            color_name: blue
+          target:
+            entity_id: light.#your color light#
+        - delay:
+            hours: 0
+            minutes: 0
+            seconds: 0
+            milliseconds: 500
+        - service: light.turn_on
+          data:
+            color_name: red
+          target:
+            entity_id: light.#your color light#
+        - delay:
+            hours: 0
+            minutes: 0
+            seconds: 0
+            milliseconds: 500
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 40
+      milliseconds: 0
+  - service: scene.turn_on
+    data: {}
+    target:
+      entity_id: scene.before
 mode: single
+
+
+
+
+
+
+
 ```
