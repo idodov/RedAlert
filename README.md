@@ -206,7 +206,8 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
 ```
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
-You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers.' > 'Create' > 'Template' > 'Template Binary sensor'** 
+You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers.' > 'Create' > 'Template' > 'Template binary sensor'** 
+
 ![b2](https://github.com/idodov/RedAlert/assets/19820046/ce3f4144-0051-40a5-ac2a-7e205e239c21)
 
 ## Usage *binary_sensor.oref_alert* for Home Assistant
