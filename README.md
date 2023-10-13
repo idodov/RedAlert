@@ -232,13 +232,14 @@ prev_data_count: 1
 ```
 ## lovelace card example
 Shows if there is an alert, how many alerts are active and where
+![Capture111](https://github.com/idodov/RedAlert/assets/19820046/d5d5a3d2-db56-43cb-841d-96f7ec226a08)
 ```
 type: markdown
 content: |-
     <center>
     {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
       {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}
-        {{ state_attr('binary_sensor.oref_alert', 'data_count') }} התרעות פעילות
+         התרעות פעילות {{ state_attr('binary_sensor.oref_alert', 'data_count') }}
       {% elif state_attr('binary_sensor.oref_alert', 'data_count') == 1 %}
         התרעה פעילה אחת
       {% endif %}
@@ -248,7 +249,7 @@ content: |-
      {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
     <big>{{ state_attr('binary_sensor.oref_alert', 'data') }}</big>
 
-    ** {{ state_attr('binary_sensor.oref_alert', 'desc') }}**
+    **{{ state_attr('binary_sensor.oref_alert', 'desc') }}**
     {% endif %}
     </center>
 title: Red Alert
@@ -294,3 +295,5 @@ You can create numerous automations triggered by the binary sensor or its associ
 *As an example, forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen.*
 
 ![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
+
+
