@@ -222,12 +222,20 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 `
 
-**Sample trigger or value template for a binary sensor - All of Tel Aviv, except the city center**
+**Sample trigger or value template for a binary sensor - All of Tel Aviv, *except* the city center**
 
 ```
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") 
    and not 
    state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב - מרכז העיר") }}
+```
+
+**Sample trigger or value template for a binary sensor - Tel Aviv *OR* Ramat Gan **
+
+```
+{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") 
+   or 
+   state_attr('binary_sensor.oref_alert', 'data') | regex_search("רמת גן") }}
 ```
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
