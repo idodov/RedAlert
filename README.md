@@ -230,7 +230,7 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
    state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב - מרכז העיר") }}
 ```
 
-**Sample trigger or value template for a binary sensor - Tel Aviv *OR* Ramat Gan **
+**Sample trigger or value template for a binary sensor - Tel Aviv *OR* Ramat Gan**
 
 ```
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") 
