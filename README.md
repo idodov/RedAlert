@@ -241,9 +241,11 @@ You can generate a new binary sensor to monitor your city within the user interf
 id: '133413399870000000'
 cat: '1'
 title: ירי רקטות וטילים
+friendly_name:  ירי רקטות וטילים
 data: אזור תעשייה הדרומי אשקלון
 desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 data_count: 1
+emoji: 🚀
 ```
 ### Example data (when there is no active alert / state is off):
 ```
@@ -252,12 +254,16 @@ cat: null
 title: null
 desc: null
 data: null
+data_count: 0
+icon: mdi:alert
+friendly_name: אין התרעות
 prev_cat: '1'
 prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-prev_data: מטולה
-data_count: 0
+prev_data: אזור תעשייה הדרומי אשקלון
 prev_data_count: 1
+emoji: 🚨
+
 ```
 "prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
 
