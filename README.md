@@ -226,9 +226,7 @@ For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 To create a sensor that activates only when an attack occurs in any Israeli city with similar character patterns in their names, you should use the following code syntax.
 For example, if you want to create a sensor that activates when *only* "יבנה" *and not* "גן יבנה" is attacked, you can use the following code syntax.
 ```
-{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("יבנה") 
-   and not 
-   state_attr('binary_sensor.oref_alert', 'data') | regex_search("גן יבנה") }}
+{{ "יבנה" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
 
 **Sample trigger or value template for a binary sensor - Tel Aviv *OR* Ramat Gan**
