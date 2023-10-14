@@ -12,15 +12,17 @@ I tried various methods in Home Assistant, but this script worked best for my ne
 
 *This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9*
 
+### Sensor capabilities
 ![Capture](https://github.com/idodov/RedAlert/assets/19820046/79adf8ff-1369-472b-a463-0c1fe82a9c4d)
 ![Capture--](https://github.com/idodov/RedAlert/assets/19820046/2cdee4bb-0849-4dc1-bb78-c2e282300fdd)
 ![000](https://github.com/idodov/RedAlert/assets/19820046/22c3336b-cb39-42f9-8b32-195d9b6447b2)
 
-The sensor's icon and name, which are displayed on the dashboard using the default entity card, are dynamic and will change every time there is an alert. For example, it may show a rocket icon during a rocket attack.
+The icon and label of the sensor, presented on the dashboard via the default entity card, are subject to change dynamically with each new alert occurrence. To illustrate, in the event of a rocket attack, the icon might depict a rocket.
 
-You can create numerous automations triggered by the binary sensor or its associated sub-sensors. For instance, one of the possibilities is sending alert messages to an LED matrix screen. 
+Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
 
-*As an example, forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen.*
+You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to an LED matrix screen.
+*(forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen)*
 
 ![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
 
@@ -28,7 +30,7 @@ You can create numerous automations triggered by the binary sensor or its associ
 
 ![20231013_221552](https://github.com/idodov/RedAlert/assets/19820046/6e60d5ca-12a9-4fd2-9b10-bcb19bf38a6d)
 
-*While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor **before installation**. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**State template**' field, input '**off**.' **submit** your settings to save your new helper.*
+While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor **before installation**. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**State template**' field, input '**off**.' **submit** your settings to save your new helper.
 
 ![b1](https://github.com/idodov/RedAlert/assets/19820046/e451fa8c-789b-4e88-ab98-4687b65f058e)
 # Installation Instructions
@@ -84,22 +86,37 @@ class OrefAlert(Hass):
             'Content-Type': 'application/json',
         }
         icons = {
-        1: "mdi:rocket-launch",
-        2: "mdi:home-alert",
-        3: "mdi:earth-box",
-        4: "mdi:chemical-weapon",
-        5: "mdi:waves",
-        6: "mdi:airplane",
-        7: "mdi:skull",
-        8: "mdi:alert",
-        9: "mdi:alert",
-        10: "mdi:alert",
-        11: "mdi:alert",
-        12: "mdi:alert",
-        13: "mdi:run-fast",
-        }
+                    1: "mdi:rocket-launch",
+                    2: "mdi:home-alert",
+                    3: "mdi:earth-box",
+                    4: "mdi:chemical-weapon",
+                    5: "mdi:waves",
+                    6: "mdi:airplane",
+                    7: "mdi:skull",
+                    8: "mdi:alert",
+                    9: "mdi:alert",
+                    10: "mdi:alert",
+                    11: "mdi:alert",
+                    12: "mdi:alert",
+                    13: "mdi:run-fast",
+                    }
         icon_alert = "mdi:alert"
-
+        emojis = {
+                    1: "🚀",
+                    2: "⚠️",
+                    3: "🌍",
+                    4: "☢️",
+                    5: "🌊",
+                    6: "🛩️",
+                    7: "💀",
+                    8: "❗",
+                    9: "❗",
+                    10: "❗",
+                    11: "❗",
+                    12: "❗",
+                    13: "👣👹",
+                    }
+        icon_emoji = "🚨"
         try:
             response = requests.get(url, headers=headers)
             if response.status_code == 200:
@@ -111,6 +128,7 @@ class OrefAlert(Hass):
                             alert_title = data.get('title', '')
                             alerts_data = ', '.join(data['data'])
                             icon_alert = icons.get(int(data.get('cat', 1)), "mdi:alert")
+                            icon_emoji = emojis.get(int(data.get('cat', 1)), "❗")
                             if isinstance(alerts_data, str):
                                 data_count = len(alerts_data.split(','))
                             else:
@@ -132,6 +150,7 @@ class OrefAlert(Hass):
                                     "prev_data": alerts_data,
                                     "prev_last_changed": datetime.now().isoformat(),
                                     "icon": icon_alert,
+                                    "emoji":  icon_emoji,
                                     "friendly_name": alert_title,
                                 },
                             )
@@ -149,6 +168,7 @@ class OrefAlert(Hass):
                                     "data_count": 0,
                                     "last_changed": datetime.now().isoformat(),
                                     "icon": icon_alert,
+                                    "emoji":  icon_emoji,
                                     "friendly_name": "אין התרעות",
                                 },
                             )
@@ -167,6 +187,7 @@ class OrefAlert(Hass):
                             "data": None,
                             "data_count": 0,
                             "icon": icon_alert,
+                            "emoji":  icon_emoji,
                             "friendly_name": "אין התרעות",
                         },
                     )
@@ -248,39 +269,36 @@ prev_data_count: 1
 {{ state_attr('binary_sensor.oref_alert', 'cat') }} #קטגוריה
 {{ state_attr('binary_sensor.oref_alert', 'id') }} #מספר ייחודי
 {{ state_attr('binary_sensor.oref_alert', 'data_count') }} #מספר התרעות פעילות
+{{ state_attr('binary_sensor.oref_alert', 'emoji') }} #אימוג'י עבור סוג התרעה
 
 {{ state_attr('binary_sensor.oref_alert', 'prev_title') }} #כותרת אחרונה שהיתה פעילה
 {{ state_attr('binary_sensor.oref_alert', 'prev_data') }} #רשימת ישובים אחרונים
 {{ state_attr('binary_sensor.oref_alert', 'prev_desc') }} #הסבר התגוננות אחרון
 {{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
-{{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} # מספר התרעות בו זמנית קודמות
+{{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} #מספר התרעות בו זמנית קודמות
 ```
 ## lovelace card example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
-![Capture111](https://github.com/idodov/RedAlert/assets/19820046/d5d5a3d2-db56-43cb-841d-96f7ec226a08)
+![TILIM](https://github.com/idodov/RedAlert/assets/19820046/f8ad780b-7e64-4c54-ab74-79e7ff56b780)
 ```
 type: markdown
-content: |-
-    <center>
-    {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
-      {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}
-         התרעות פעילות {{ state_attr('binary_sensor.oref_alert', 'data_count') }}
-      {% elif state_attr('binary_sensor.oref_alert', 'data_count') == 1 %}
-        התרעה פעילה אחת
-      {% endif %}
-    {% else %}
-      אין התרעות פעילות
-    {% endif %}
-     {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
-    <big>{{ state_attr('binary_sensor.oref_alert', 'data') }}</big>
+content: >-
+  <center><h3>{% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
+  כרגע יש {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}{{
+  state_attr('binary_sensor.oref_alert', 'data_count') }} התרעות פעילות{% elif
+  state_attr('binary_sensor.oref_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
+  endif %}{% else %} אין התרעות פעילות{% endif %}</h3>
 
-    **{{ state_attr('binary_sensor.oref_alert', 'desc') }}**
-    {% endif %}
-    </center>
+  {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}<h2>{{
+  state_attr('binary_sensor.oref_alert', 'emoji') }} {{
+  state_attr('binary_sensor.oref_alert', 'title') }}</h2>
+  <h3>{{ state_attr('binary_sensor.oref_alert', 'data') }}</h3>
+  **{{ state_attr('binary_sensor.oref_alert', 'desc') }}** {% endif %} </center>
 title: Red Alert
 ```
 ## Automation examples
 ### *Send a notification to the phone (Home Assistant app) when there is an alert in Israel (all cities)*
+*(Change ```#your phone#``` to your entity name)*
 ```
 alias: Notify attack
 description: ""
@@ -295,10 +313,11 @@ action:
   - service: notify.mobile_app_#your phone#
     data:
       message: "{{ state_attr('binary_sensor.oref_alert', 'data') }}"
-      title: "{{ state_attr('binary_sensor.oref_alert', 'title') }}"
+      title: "{{ state_attr('binary_sensor.oref_alert', 'emoji') }} {{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
 ### *Change the light color when there is an active alert in all areas of Tel Aviv*
+*(Change ```light.#light-1#``` to your entity name)*
 ```
 alias: Alert in TLV
 description: "When an alert occurs in Tel Aviv, the lights will cyclically change to red and blue for a duration of 30 seconds, after which they will revert to their previous states"
