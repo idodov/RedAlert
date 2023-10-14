@@ -21,14 +21,7 @@ The icon and label of the sensor, presented on the dashboard via the default ent
 
 Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
 
-You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to an LED matrix screen. *(forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen)*
-
-![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
-
-*As another illustration, you can configure your RGB lights to change colors repeatedly while the alert is active.*
-
-![20231013_221552](https://github.com/idodov/RedAlert/assets/19820046/6e60d5ca-12a9-4fd2-9b10-bcb19bf38a6d)
-
+### Important Notice
 While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor **before installation**. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**State template**' field, input '**off**.' **submit** your settings to save your new helper.
 
 ![b1](https://github.com/idodov/RedAlert/assets/19820046/e451fa8c-789b-4e88-ab98-4687b65f058e)
@@ -254,6 +247,10 @@ content: >-
 title: Red Alert
 ```
 ## Automation Examples
+You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to an LED matrix screen (for example, forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen).
+
+![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
+
 ### Send a notification to the phone (Home Assistant app) when there is an alert in Israel (all cities)
 *(Change ```#your phone#``` to your entity name)*
 ```
@@ -274,6 +271,10 @@ action:
 mode: single
 ```
 ### Change the light color when there is an active alert in all areas of Tel Aviv
+As another illustration, you can configure your RGB lights to change colors repeatedly while the alert is active.
+
+![20231013_221552](https://github.com/idodov/RedAlert/assets/19820046/6e60d5ca-12a9-4fd2-9b10-bcb19bf38a6d)
+
 *(Change ```light.#light-1#``` to your entity name)*
 ```
 alias: Alert in TLV
