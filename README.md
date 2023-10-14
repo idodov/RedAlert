@@ -209,6 +209,7 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
 
 ## Red Alert Trigger for Specific City or City-Area (*)
 (*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
+For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
 **Sample trigger or value template for a binary sensor - Tel Aviv city center:**
 
@@ -237,7 +238,6 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
    or 
    state_attr('binary_sensor.oref_alert', 'data') | regex_search("רמת גן") }}
 ```
-For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers.' > 'Create' > 'Template' > 'Template binary sensor'** 
 
