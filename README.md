@@ -210,10 +210,9 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
 **Sample trigger or value template for a binary sensor - Tel Aviv city center:**
-
-`
-{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב - מרכז העיר") }}
-`
+```
+{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
+```
 
 **Sample trigger or value template for a binary sensor - Tel Aviv all areas:**
 
@@ -237,7 +236,7 @@ For example, if you want to create a sensor that activates when *only* "יבנה
    state_attr('binary_sensor.oref_alert', 'data') | regex_search("רמת גן") }}
 ```
 
-You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers.' > 'Create' > 'Template' > 'Template binary sensor'** 
+You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers' > 'Create' > 'Template' > 'Template binary sensor'** 
 
 ![b2](https://github.com/idodov/RedAlert/assets/19820046/ce3f4144-0051-40a5-ac2a-7e205e239c21)
 
