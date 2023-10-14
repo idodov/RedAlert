@@ -6,7 +6,7 @@ Installing this script will create a new Home Assistant entity called ***binary_
 ### Why did I choose this method and not REST sensor?
 Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. 
 
-While the binary sensor's state switches to 'on' when there is an active alert in Israel behavior may not suit everyone, The sensor is designed with additional attributes containing data such as cities, types of attacks and more. These attributes make it easy to create customized sub-sensors to meet individual requirements. For example, you can set up specific sensors that activate only when an alarm pertains to a particular city or area.
+While the binary sensor's state switches to 'on' when there is an active alert in Israel behavior may not suit everyone, the sensor is designed with additional attributes containing data such as cities, types of attacks and more. These attributes make it easy to create customized sub-sensors to meet individual requirements. For example, you can set up specific sensors that activate only when an alarm pertains to a particular city or area.
 
 I tried various methods in Home Assistant, but this script worked best for my needs.
 
@@ -21,12 +21,11 @@ The icon and label of the sensor, presented on the dashboard via the default ent
 
 Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
 
-You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to an LED matrix screen.
-*(forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen)*
+You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to an LED matrix screen. *(forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen)*
 
 ![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
 
-*As another illustration, you can configure your lights to change colors repeatedly while the alert is active.*
+*As another illustration, you can configure your RGB lights to change colors repeatedly while the alert is active.*
 
 ![20231013_221552](https://github.com/idodov/RedAlert/assets/19820046/6e60d5ca-12a9-4fd2-9b10-bcb19bf38a6d)
 
@@ -206,7 +205,6 @@ orefalert:
 
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
 
-
 ## Red Alert Trigger for Specific City or City-Area (*)
 (*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
@@ -246,53 +244,6 @@ You can generate a new binary sensor to monitor your city within the user interf
 ![b2](https://github.com/idodov/RedAlert/assets/19820046/ce3f4144-0051-40a5-ac2a-7e205e239c21)
 
 ## Usage *binary_sensor.oref_alert* for Home Assistant
-### Example data (when there is active alert / state is on)
-```
-id: '133413399870000000'
-cat: '1'
-title: ירי רקטות וטילים
-friendly_name:  ירי רקטות וטילים
-data: אזור תעשייה הדרומי אשקלון
-desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-data_count: 1
-emoji: 🚀
-```
-### Example data (when there is no active alert / state is off):
-```
-id: null
-cat: null
-title: null
-desc: null
-data: null
-data_count: 0
-icon: mdi:alert
-friendly_name: אין התרעות
-prev_cat: '1'
-prev_title: ירי רקטות וטילים
-prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-prev_data: אזור תעשייה הדרומי אשקלון
-prev_data_count: 1
-emoji: 🚨
-
-```
-"prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
-
-## Display attributes
-```
-{{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
-{{ state_attr('binary_sensor.oref_alert', 'data') }} #רשימת ישובים
-{{ state_attr('binary_sensor.oref_alert', 'desc') }} #הסבר התגוננות
-{{ state_attr('binary_sensor.oref_alert', 'cat') }} #קטגוריה
-{{ state_attr('binary_sensor.oref_alert', 'id') }} #מספר ייחודי
-{{ state_attr('binary_sensor.oref_alert', 'data_count') }} #מספר התרעות פעילות
-{{ state_attr('binary_sensor.oref_alert', 'emoji') }} #אימוג'י עבור סוג התרעה
-
-{{ state_attr('binary_sensor.oref_alert', 'prev_title') }} #כותרת אחרונה שהיתה פעילה
-{{ state_attr('binary_sensor.oref_alert', 'prev_data') }} #רשימת ישובים אחרונים
-{{ state_attr('binary_sensor.oref_alert', 'prev_desc') }} #הסבר התגוננות אחרון
-{{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
-{{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} #מספר התרעות בו זמנית קודמות
-```
 ## lovelace card example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
 ![TILIM](https://github.com/idodov/RedAlert/assets/19820046/f8ad780b-7e64-4c54-ab74-79e7ff56b780)
@@ -317,7 +268,7 @@ title: Red Alert
 *(Change ```#your phone#``` to your entity name)*
 ```
 alias: Notify attack
-description: ""
+description: "Real-time Attack Notification"
 trigger:
   - platform: state
     entity_id:
@@ -386,3 +337,50 @@ action:
       entity_id: scene.before_oref_alert
 mode: single
 ```
+
+## Display attributes
+```
+{{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
+{{ state_attr('binary_sensor.oref_alert', 'data') }} #רשימת ישובים
+{{ state_attr('binary_sensor.oref_alert', 'desc') }} #הסבר התגוננות
+{{ state_attr('binary_sensor.oref_alert', 'cat') }} #קטגוריה
+{{ state_attr('binary_sensor.oref_alert', 'id') }} #מספר ייחודי
+{{ state_attr('binary_sensor.oref_alert', 'data_count') }} #מספר התרעות פעילות
+{{ state_attr('binary_sensor.oref_alert', 'emoji') }} #אימוג'י עבור סוג התרעה
+
+{{ state_attr('binary_sensor.oref_alert', 'prev_title') }} #כותרת אחרונה שהיתה פעילה
+{{ state_attr('binary_sensor.oref_alert', 'prev_data') }} #רשימת ישובים אחרונים
+{{ state_attr('binary_sensor.oref_alert', 'prev_desc') }} #הסבר התגוננות אחרון
+{{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
+{{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} #מספר התרעות בו זמנית קודמות
+```
+
+### Example data (when there is active alert / state is on)
+```
+id: '133413399870000000'
+cat: '1'
+title: ירי רקטות וטילים
+friendly_name:  ירי רקטות וטילים
+data: אזור תעשייה הדרומי אשקלון
+desc: היכנסו למרחב המוגן ושהו בו 10 דקות
+data_count: 1
+emoji: 🚀
+```
+### Example data (when there is no active alert / state is off):
+```
+id: null
+cat: null
+title: null
+desc: null
+data: null
+data_count: 0
+icon: mdi:alert
+friendly_name: אין התרעות
+prev_cat: '1'
+prev_title: ירי רקטות וטילים
+prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
+prev_data: אזור תעשייה הדרומי אשקלון
+prev_data_count: 1
+emoji: 🚨
+```
+"prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
