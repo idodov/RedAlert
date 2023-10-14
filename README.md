@@ -12,7 +12,7 @@ I tried various methods in Home Assistant, but this script worked best for my ne
 
 *This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9*
 
-### Sensor capabilities
+### Sensor Capabilities
 ![Capture](https://github.com/idodov/RedAlert/assets/19820046/79adf8ff-1369-472b-a463-0c1fe82a9c4d)
 ![Capture--](https://github.com/idodov/RedAlert/assets/19820046/2cdee4bb-0849-4dc1-bb78-c2e282300fdd)
 ![000](https://github.com/idodov/RedAlert/assets/19820046/22c3336b-cb39-42f9-8b32-195d9b6447b2)
@@ -209,39 +209,32 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
 (*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
-**Sample trigger or value template for a binary sensor - Tel Aviv city center:**
-```
-{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
-```
-
-**Sample trigger or value template for a binary sensor - Tel Aviv all areas:**
-
-`
-{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
-`
-
-**Sample trigger or value template for a binary sensor - Yavne city and not Gan-Yavne city**
-
+### Sample Trigger or Value Template for a Binary Sensor - Yavne city and not Gan-Yavne city:
 To create a sensor that activates only when an attack occurs in any Israeli city with similar character patterns in their names, you should use the following code syntax.
 For example, if you want to create a sensor that activates when *only* "יבנה" *and not* "גן יבנה" is attacked, you can use the following code syntax.
 ```
 {{ "יבנה" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
-
-**Sample trigger or value template for a binary sensor - Tel Aviv *OR* Ramat Gan**
-
+### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv city center:
+```
+{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
+```
+### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv all areas:
+`
+{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
+`
+### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv *OR* Ramat Gan:
 ```
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") 
    or 
    state_attr('binary_sensor.oref_alert', 'data') | regex_search("רמת גן") }}
 ```
-
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers' > 'Create' > 'Template' > 'Template binary sensor'** 
 
 ![b2](https://github.com/idodov/RedAlert/assets/19820046/ce3f4144-0051-40a5-ac2a-7e205e239c21)
 
 ## Usage *binary_sensor.oref_alert* for Home Assistant
-## lovelace card example
+### Lovelace Card Example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
 ![TILIM](https://github.com/idodov/RedAlert/assets/19820046/f8ad780b-7e64-4c54-ab74-79e7ff56b780)
 ```
@@ -260,8 +253,8 @@ content: >-
   **{{ state_attr('binary_sensor.oref_alert', 'desc') }}** {% endif %} </center>
 title: Red Alert
 ```
-## Automation examples
-### *Send a notification to the phone (Home Assistant app) when there is an alert in Israel (all cities)*
+## Automation Examples
+### Send a notification to the phone (Home Assistant app) when there is an alert in Israel (all cities)
 *(Change ```#your phone#``` to your entity name)*
 ```
 alias: Notify attack
@@ -280,7 +273,7 @@ action:
       title: "{{ state_attr('binary_sensor.oref_alert', 'emoji') }} {{ state_attr('binary_sensor.oref_alert', 'title') }}"
 mode: single
 ```
-### *Change the light color when there is an active alert in all areas of Tel Aviv*
+### Change the light color when there is an active alert in all areas of Tel Aviv
 *(Change ```light.#light-1#``` to your entity name)*
 ```
 alias: Alert in TLV
@@ -335,7 +328,7 @@ action:
 mode: single
 ```
 
-## Display attributes
+## Display Attributes
 ```
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
 {{ state_attr('binary_sensor.oref_alert', 'data') }} #רשימת ישובים
@@ -352,7 +345,7 @@ mode: single
 {{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} #מספר התרעות בו זמנית קודמות
 ```
 
-### Example data (when there is active alert / state is on)
+### Example Data (when there is active alert / state is on)
 ```
 id: '133413399870000000'
 cat: '1'
@@ -363,7 +356,7 @@ desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 data_count: 1
 emoji: 🚀
 ```
-### Example data (when there is no active alert / state is off):
+### Example Data (when there is no active alert / state is off):
 ```
 id: null
 cat: null
