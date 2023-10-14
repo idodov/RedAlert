@@ -205,7 +205,7 @@ orefalert:
 
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
 
-## Red Alert Trigger for Specific City or City-Area (*)
+## Red Alert Trigger for Specific City or City-Area* or cities with similar character patterns
 (*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
