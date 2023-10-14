@@ -203,8 +203,7 @@ Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert*
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
 ### Sample Trigger or Value Template for a Binary Sensor - Yavne city and not Gan-Yavne city:
-To create a sensor that activates only when an attack occurs in specific city that has similar character patterns in other cities names, you should use the following approach.
-For example, if you want to create a sensor that activates when **only** "יבנה" *"and not** "גן יבנה" is attacked, you can use the following code syntax.
+To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
 ```
 {{ "יבנה" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
