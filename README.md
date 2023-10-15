@@ -208,13 +208,14 @@ To create a sensor that activates only when an attack occurs in a specific city 
 ```
 {{ "יבנה" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
-### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv (city center):
+### Sample Trigger or Value Template for a Binary Sensor - Cities With Multiple Zones:
+In cities with multiple zones, relying solely on the SPLIT function won't be effective if you've only defined the city name. If you need a sensor that triggers for all zones within the 11 cities divided into multiple alert zones, it's advisable to utilize the SEARCH_REGEX function instead of splitting the data. 
+```
+{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
+```
+If you want to trigger a specific area, use the split function and make sure to type the city name and area exactly as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
 ```
 {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
-```
-### Sample Trigger or Value Template for a Binary Sensor - Ashdod (all areas):
-```
-{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("אשדוד") }} 
 ```
 ## Red Alert Trigger for Particular Type of Alert:
 The **'cat'** attribute defines the alert type, with a range from 1 to 13, where 1 represents a missile attack, 6 indicates unauthorized aircraft penetration and 13 indicates the infiltration of terrorists. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
@@ -382,3 +383,30 @@ prev_data_count: 1
 emoji: 🚨
 ```
 "prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
+
+## Sensor History
+Since it's a binary sensor based on attributes, Home Assistant history is only saved when the sensor transitions between on and off states. If you wish to maintain a complete history of all alerts, including the type of alert and the city, follow these steps:
+
+Create a new **TEXT helper** and name it "**Last Alert in Israel**."
+Develop a new automation that updates the text sensor each time a red alert occurs in Israel. You can use the following code.
+You have the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
+```yaml
+alias: Lastest Alerts
+description: "Saving the last alert to INPUT_TEXT (all alerts)"
+mode: single
+trigger:
+  - platform: state
+    entity_id:
+      - binary_sensor.oref_alert
+    to: "on"
+condition: []
+action:
+  - service: input_text.set_value
+    data:
+      value: >-
+        {{ state_attr('binary_sensor.oref_alert', 'title') }} - {{
+        state_attr('binary_sensor.oref_alert', 'data') }}
+    target:
+      entity_id: input_text.last_alert_in_israel
+```
+![00Capture](https://github.com/idodov/RedAlert/assets/19820046/283b7be8-7888-4930-a9b8-0ce48054e9d6)
