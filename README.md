@@ -223,7 +223,7 @@ The **'cat'** attribute defines the alert type, with a range from 1 to 13, where
 {{ state_attr('binary_sensor.oref_alert', 'cat') == '6' }}
 ```
 ### Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz
-```
+```yaml
 {{ state_attr('binary_sensor.oref_alert', 'cat') == '6'
 and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
