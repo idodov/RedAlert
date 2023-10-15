@@ -232,7 +232,7 @@ In cities with multiple zones, relying solely on the SPLIT function won't be eff
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 ```
 
-If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area *exactly* as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
+If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area **exactly** as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
 ```
 {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
@@ -380,7 +380,7 @@ mode: single
 ### Get notification when it's safe
 The "desc" attribute provides information on the duration in minutes for staying inside the safe room. This automation will generate a timer based on the data from this attribute.
 Before implementing this automation, it's essential to create a TIMER helper.
-1. Create a new **TIMER helper**. You can generate a new timer sensor within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Timer'**
+1. Create a new **TIMER helper**. You can generate a new timer entity within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Timer'**
 2. Name it "**Oref Alert**".
 3. Create automation with your desire trigger, 
 **for example:** *(change ```#your phone#``` to your entity name)*
@@ -425,7 +425,7 @@ action:
 {{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
 {{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} #מספר התרעות בו זמנית קודמות
 ```
-### Example Data (when there is active alert / state is on)
+### Example Data When There is Active Alert (state is on)
 ```
 id: '133413399870000000'
 cat: '1'
@@ -436,7 +436,7 @@ desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 data_count: 1
 emoji: 🚀
 ```
-### Example Data (when there is no active alert / state is off):
+### Example Data When There is No Active Alert (state is off):
 ```
 id: null
 cat: null
