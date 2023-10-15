@@ -233,6 +233,8 @@ In cities with multiple zones, relying solely on the SPLIT function won't be eff
 ```
 
 If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area **exactly** as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
+
+**Trigger for Automation**
 ```
 {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
@@ -458,7 +460,7 @@ emoji: 🚨
 ## Sensor History
 Since it's a binary sensor based on attributes, Home Assistant history is only saved when the sensor transitions between on and off states. If you wish to maintain a complete history of all alerts, including the type of alert and the city, follow these steps:
 
-1. Create a new **TEXT helper**. You can generate a new text sensor to monitor history, within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Text'**
+1. Create a new **TEXT helper**. You can generate a new text entity to monitor history, within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Text'**
 2. Name it "**Last Alert in Israel**".
 3. Change the **maximum length** from 100 to **255**.
    
@@ -485,6 +487,6 @@ action:
     target:
       entity_id: input_text.last_alert_in_israel
 ```
-The sensor's logbook will become available following the initial alert.
+*The sensor's logbook will become available following the initial alert.*
 
 ![00Capture](https://github.com/idodov/RedAlert/assets/19820046/283b7be8-7888-4930-a9b8-0ce48054e9d6)
