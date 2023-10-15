@@ -265,7 +265,9 @@ and is_state('binary_sensor.oref_alert','on') }}
 ```
 ## How to create a custom sub-sensor
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Template' > 'Template binary sensor'** 
+
 **Ensure that you employ the accurate syntax!**
+
 *Should you follow this guide prior to the existence of any active alerts, you might observe "unavailable" displayed on the sensor status. This occurs due to the absence of stored data on the sensor for reference.*
 
 ![QQQ](https://github.com/idodov/RedAlert/assets/19820046/3d5e93ab-d698-4ce0-b341-6bee0e641e05)
