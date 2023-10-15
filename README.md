@@ -1,7 +1,8 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
 **This script creates a Home Assistant binary sensor to track the status of Red Alerts in Israel. The sensor can be used in automations or to create sub-sensors/binary sensors from it.**
+The sensor provides a warning for all threats that the PIKUD HA-OREF alerts for, including red alerts (rocket and missile launches), unauthorized aircraft penetration, earthquakes, tsunami concerns, infiltration of terrorists, hazardous materials incidents, unconventional warfare, and any other threat. When the alert is received, the nature of the threat will appear at the beginning of the alert (e.g., 'ירי רקטות וטילים').
 
-Installing this script will create a new Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also contains attributes that can be used for various purposes, such as category, ID, title, data, and description.
+Installing this script will create a Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also contains attributes that can be used for various purposes, such as category, ID, title, data, and description.
 
 ### Why did I choose this method and not REST sensor?
 Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. 
@@ -198,7 +199,7 @@ orefalert:
 
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
 
-## Red Alert Trigger for Specific City, City Area*, or Cities with Similar Character Patterns
+## Red Alert Trigger for Specific City, City Area*, or Cities with Similar Character Patterns:
 (*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
 For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
 
@@ -211,15 +212,20 @@ To create a sensor that activates only when an attack occurs in a specific city 
 ```
 {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
-### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv all areas:
+### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv (all areas):
 `
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 `
-### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv *OR* Ramat Gan:
+## Red Alert Trigger for Particular Type of Alert:
+The **'cat'** attribute defines the alert type, with a range from 1 to 13, where 1 represents a missile attack, 6 indicates unauthorized aircraft penetration and 13 indicates the infiltration of terrorists. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
+### Sample trigger alert for unauthorized aircraft penetration
 ```
-{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") 
-   or 
-   state_attr('binary_sensor.oref_alert', 'data') | regex_search("רמת גן") }}
+{{ state_attr('binary_sensor.oref_alert', 'cat') == '6' }}
+```
+### Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz
+```
+{{ state_attr('binary_sensor.oref_alert', 'cat') == '6'
+and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers' > 'Create' > 'Template' > 'Template binary sensor'** 
 
