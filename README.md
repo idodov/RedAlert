@@ -28,8 +28,8 @@ While it's not obligatory, you have the option to create the sensor from the UI 
 
 ![b1](https://github.com/idodov/RedAlert/assets/19820046/e451fa8c-789b-4e88-ab98-4687b65f058e)
 # Installation Instructions
-1. Install the **AppDaemon** addon in Home Assistant.
-2. Go to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
+This installation method relies on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method.
+1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 3. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
 4. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
 
@@ -57,7 +57,7 @@ hadashboard:
 6. Create a file named **orefalert.py** in the **/config/appdaemon/apps/** directory.
 7. Paste the script code into the **orefalert.py** file and save it.
 The script updates the sensors every *3 seconds*, or more frequently if you specify a shorter scan ```interval```. 
-```py
+```orefalert.py
 import requests
 import time
 import json
@@ -388,7 +388,8 @@ emoji: 🚨
 ## Sensor History
 Since it's a binary sensor based on attributes, Home Assistant history is only saved when the sensor transitions between on and off states. If you wish to maintain a complete history of all alerts, including the type of alert and the city, follow these steps:
 
-Create a new **TEXT helper** and name it "**Last Alert in Israel**."
+Create a new **TEXT helper** and name it "**Last Alert in Israel**".
+
 Develop a new automation that updates the text sensor each time a red alert occurs in Israel. You can use the following code.
 You have the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
 ```yaml
