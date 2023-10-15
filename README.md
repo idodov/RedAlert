@@ -25,8 +25,8 @@ Additionally, there exists a distinct emoji associated with each type of alert, 
 
 ### Important Notice
 * If you choose to follow this guide before any active alerts are present, you may notice that the sub-sensor you later create status displays as "unavailable". This happens because the sensor doesn't have any stored data to reference until the first alert occurs, at which point it will be resolved.
-* While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor
 * This installation method relies on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
+* While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor
 **before installation**. To do so:
 1. Navigate to the Home Assistant menu, then proceed to '**Settings**', '**Devices & Services**', '**Helpers**'
 2. Select '**Create a Helper**'.
