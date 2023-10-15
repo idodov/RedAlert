@@ -19,12 +19,13 @@ I tried various methods in Home Assistant, but this script worked best for my ne
 ![Capture--](https://github.com/idodov/RedAlert/assets/19820046/2cdee4bb-0849-4dc1-bb78-c2e282300fdd)
 ![000](https://github.com/idodov/RedAlert/assets/19820046/22c3336b-cb39-42f9-8b32-195d9b6447b2)
 
-The icon and label of the sensor, presented on the dashboard via the default entity card, are subject to change dynamically with each new alert occurrence. To illustrate, in the event of a rocket attack, the icon might depict a rocket.
+The icon and label of the sensor, presented on the dashboard via the default entity card, are subject to change dynamically with each new alert occurrence. To illustrate, in the event of a rocket attack, the icon depict a rocket.
 
 Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
 
 ### Important Notice
-While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor **before installation**. To do so:
+* If you choose to follow this guide before any active alerts are present, you may notice that the sub-sensor you later create status displays as "unavailable". This happens because the sensor doesn't have any stored data to reference until the first alert occurs, at which point it will be resolved.
+* While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor **before installation**. To do so:
 1. Navigate to the Home Assistant menu, then proceed to '**Settings**', '**Devices & Services**', '**Helpers**'
 2. Select '**Create a Helper**'.
 3. Choose '**Template**' and opt for a '**Template Binary Sensor**'.
@@ -277,8 +278,6 @@ and is_state('binary_sensor.oref_alert','on') }}
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Template' > 'Template binary sensor'** 
 
 **Ensure that you employ the accurate syntax!**
-
-*Should you follow this guide prior to the existence of any active alerts, you might observe "unavailable" displayed on the sensor status. This occurs due to the absence of stored data on the sensor for reference.*
 
 ![QQQ](https://github.com/idodov/RedAlert/assets/19820046/3d5e93ab-d698-4ce0-b341-6bee0e641e05)
 
