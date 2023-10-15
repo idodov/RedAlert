@@ -258,7 +258,7 @@ title: Red Alert
 ```
 
 ## Automation Examples
-You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to an LED matrix screen (e.g forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen).
+You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to a LED matrix screen (e.g. forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen).
 
 ![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
 
