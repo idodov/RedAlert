@@ -249,7 +249,7 @@ The **'cat'** attribute defines the alert type, with a range from 1 to 13, where
 ```
 **Custom Binary sensor / Helper**
 ```
-{{ state_attr('binary_sensor.oref_alert', 'prev_cat') == '1' and is_state('binary_sensor.oref_alert','on') }}
+{{ state_attr('binary_sensor.oref_alert', 'prev_cat') == '6' and is_state('binary_sensor.oref_alert','on') }}
 ```
 ### Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz
 **Trigger for Automation**
@@ -260,12 +260,12 @@ and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'data').split(', '
 **Custom Binary sensor / Helper**
 ```yaml
 {{ (state_attr('binary_sensor.oref_alert', 'prev_cat') == '6'
-and "כיסופים" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')) 
+and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')) 
 and is_state('binary_sensor.oref_alert','on') }}
 ```
 ## How to create a custom sub-sensor
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Template' > 'Template binary sensor'** 
-**Make sure to use the currect syntax!**
+**Ensure that you employ the accurate syntax!**
 ![QQQ](https://github.com/idodov/RedAlert/assets/19820046/3d5e93ab-d698-4ce0-b341-6bee0e641e05)
 
 ## Usage *binary_sensor.oref_alert* for Home Assistant
