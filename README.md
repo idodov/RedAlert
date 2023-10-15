@@ -35,8 +35,9 @@ While it's not obligatory, you have the option to create the sensor from the UI 
 
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 
-5. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for ```latitude: 31.9837528``` & 
-  ```longitude: 34.7359077``` & ```elevation: 2``` & ```time_zone: Asia/Jerusalem```. 
+5. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
+  `longitude: 34.7359077` & `elevation: 2` & `time_zone: Asia/Jerusalem`. 
+*You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/*
 ```yaml
 ---
 appdaemon:
@@ -213,7 +214,7 @@ In cities with multiple zones, relying solely on the SPLIT function won't be eff
 ```
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 ```
-If you want to trigger a specific area, use the split function and make sure to type the city name and area exactly as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
+If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area *exactly* as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
 ```
 {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
