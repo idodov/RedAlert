@@ -198,23 +198,21 @@ orefalert:
 8. Restart/Start the **AppDaemon** addon.
 
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
-
-## Red Alert Trigger for Specific City, City Area*, or Cities with Similar Character Patterns:
-(*) In Israel, 11 cities have been divided into multiple alert zones, each of which receives a separate alert only when there is a danger to the population living in that area. In other words, an alert may be activated only in a specific part of the city, where there is a danger of rocket or missile fire, and the rest of the city will not receive an alert, in order to reduce the number of times residents are required to enter a safe room when there is no danger to them. The cities that have been divided into multiple alert zones are Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo.
-For city names/areas: https://www.oref.org.il//12481-he/Pakar.aspx
-
+## Red Alert Trigger for Cities with Similar Character Patterns, Specific City/City Area*
+In Israel, city names can exhibit similar patterns, such as "Yavne" and "Gan Yavne," so it's essential to consider this when creating a binary sensor based on the 'data' attribute using the SPIT function rather than the REGEX_SEARCH function.
+Moreover, in Israel, 11 cities have been subdivided into multiple alert zones, each receiving a separate alert only when there is a threat to the population residing in that specific area. This implies that there are various approaches to creating a sensor for a city as a whole and a specific area within it. The cities that have been divided into multiple alert zones include Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo. For a list of city names and areas, please refer to this link: https://www.oref.org.il//12481-he/Pakar.aspx
 ### Sample Trigger or Value Template for a Binary Sensor - Yavne city and not Gan-Yavne city:
 To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
 ```
 {{ "יבנה" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
-### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv city center:
+### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv (city center):
 ```
 {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
-### Sample Trigger or Value Template for a Binary Sensor - Tel Aviv (all areas):
+### Sample Trigger or Value Template for a Binary Sensor - Ashdod (all areas):
 `
-{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
+{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("אשדוד") }} 
 `
 ## Red Alert Trigger for Particular Type of Alert:
 The **'cat'** attribute defines the alert type, with a range from 1 to 13, where 1 represents a missile attack, 6 indicates unauthorized aircraft penetration and 13 indicates the infiltration of terrorists. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
