@@ -24,7 +24,13 @@ The icon and label of the sensor, presented on the dashboard via the default ent
 Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
 
 ### Important Notice
-While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor **before installation**. To do so, navigate to the Home Assistant menu, then proceed to '**Settings**,' '**Devices & Services**,' '**Helpers**,' and select '**Create a Helper**.' Choose '**Template**' and opt for a '**Template Binary Sensor**.' In the '**Name**' field, enter '**oref alert**,' and in the '**State template**' field, input '**off**.' **submit** your settings to save your new helper.
+While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor **before installation**. To do so:
+1. Navigate to the Home Assistant menu, then proceed to '**Settings**', '**Devices & Services**', '**Helpers**'
+2. Select '**Create a Helper**'.
+3. Choose '**Template**' and opt for a '**Template Binary Sensor**'.
+4. In the '**Name**' field, enter '**oref alert**'.
+5. In the '**State template**' field, input '**off**'.
+6. **submit** your settings to save your new helper.
 
 ![b1](https://github.com/idodov/RedAlert/assets/19820046/e451fa8c-789b-4e88-ab98-4687b65f058e)
 # Installation Instructions
@@ -231,7 +237,7 @@ and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'data').split(', '
 ```
 
 ## How to create a sub-sensor
-You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers' > 'Create' > 'Template' > 'Template binary sensor'** 
+You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Template' > 'Template binary sensor'** 
 
 ![b2](https://github.com/idodov/RedAlert/assets/19820046/ce3f4144-0051-40a5-ac2a-7e205e239c21)
 
@@ -388,8 +394,14 @@ emoji: 🚨
 ## Sensor History
 Since it's a binary sensor based on attributes, Home Assistant history is only saved when the sensor transitions between on and off states. If you wish to maintain a complete history of all alerts, including the type of alert and the city, follow these steps:
 
-1. Create a new **TEXT helper** and name it "**Last Alert in Israel**".
-2. Develop a new automation that updates the text sensor each time a red alert occurs in Israel with the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
+1. Create a new **TEXT helper**.
+2. You can generate a new text sensor to monitor your city within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Text'**
+3. Name it "**Last Alert in Israel**".
+4. Change the **maximum length** from 100 to **255**.
+   
+![111Capture](https://github.com/idodov/RedAlert/assets/19820046/1008a3ba-65a1-4de5-96cb-6bef5d2f85b0)
+
+5. Develop a new automation that updates the text sensor each time a red alert occurs in Israel with the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
 You can use the following code (all alerts). 
 ```yaml
 alias: Lastest Alerts
@@ -410,4 +422,6 @@ action:
     target:
       entity_id: input_text.last_alert_in_israel
 ```
+The sensor's logbook will become available following the initial alert.
+
 ![00Capture](https://github.com/idodov/RedAlert/assets/19820046/283b7be8-7888-4930-a9b8-0ce48054e9d6)
