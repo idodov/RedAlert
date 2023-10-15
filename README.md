@@ -380,7 +380,7 @@ mode: single
 ### Get notification when it's safe
 The "desc" attribute provides information on the duration in minutes for staying inside the safe room. This automation will generate a timer based on the data from this attribute.
 Before implementing this automation, it's essential to create a TIMER helper.
-1. Create a new **TIMER helper**. You can generate a new text sensor to monitor history, within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Timer'**
+1. Create a new **TIMER helper**. You can generate a new timer sensor within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Timer'**
 2. Name it "**Oref Alert**".
 3. Create automation with your desire trigger, 
 **for example:** *(change ```#your phone#``` to your entity name)*
