@@ -376,6 +376,39 @@ action:
       entity_id: scene.before_oref_alert
 mode: single
 ```
+
+### Get notification when it's safe
+The "desc" attribute provides information on the duration in minutes for staying inside the safe room. This automation will generate a timer based on the data from this attribute.
+Before implementing this automation, it's essential to create a TIMER helper.
+1. Create a new **TIMER helper**. You can generate a new text sensor to monitor history, within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Timer'**
+2. Name it "**Oref Alert**".
+3. Create automation with your desire trigger, 
+**for example:** *(change ```#your phone#``` to your entity name)*
+```yaml
+Alias: Safe to go out
+description: "Notify on phone that it's safe to go outside"
+mode: single
+trigger:
+  - platform: template
+    value_template: >-
+      {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert',
+      'data').split(', ') }}
+condition: []
+action:
+  - service: timer.start
+    data:
+      duration: >-
+        {{ (states.binary_sensor.oref_alert.attributes.desc |
+        regex_findall_index('\d+') | int) * 60 }}
+    target:
+      entity_id: timer.oref_alert
+  - service: notify.mobile_app_#your phone#
+    data:
+      title: ההתרעה הוסרה
+      message: אפשר לחזור לשגרה
+```
+
+
 ## Sensor Data Attributes
 ```yaml
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
