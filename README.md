@@ -207,10 +207,13 @@ orefalert:
 
 After restarting the AppDaemon addon, Home Assistant will generate the binary sensor named **binary_sensor.oref_alert**. You can incorporate this sensor into your automations and dashboards. *All sensor attributes will remain empty until an alert occurs, at which point they will be updated.*
 
-## Red Alert Trigger for Cities with Similar Character Patterns, Specific City/City Area*
-In Israel, city names can exhibit similar patterns, such as "Yavne" and "Gan Yavne," so it's essential to consider this when creating a binary sensor based on the 'data' attribute using the SPIT function rather than the REGEX_SEARCH function.
-Moreover, in Israel, 11 cities have been subdivided into multiple alert zones, each receiving a separate alert only when there is a threat to the population residing in that specific area. This implies that there are various approaches to creating a sensor for a city as a whole and a specific area within it. The cities that have been divided into multiple alert zones include Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo. For a list of city names and areas, please refer to this link: https://www.oref.org.il//12481-he/Pakar.aspx
-### Sample Trigger or Value Template for a Binary Sensor - Yavne city and not Gan-Yavne city:
+## Red Alert Trigger for Cities with Similar Character Patterns, Specific City, and Cities With Multiple Alert Zones
+In Israel, city names can exhibit similar patterns, such as "Yavne" and "Gan Yavne," so it's essential to consider this when creating a binary sensor based on the 'data' attribute using the SPIT function rather than the REGEX_SEARCH function. Also 11 cities have been subdivided into multiple alert zones, each receiving a separate alert only when there is a threat to the population residing in that specific area. This implies that there are various approaches to creating a sensor for a city as a whole and a specific area within it. The cities that have been divided into multiple alert zones include Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo. For a list of city names and areas, please refer to this link: https://www.oref.org.il//12481-he/Pakar.aspx
+
+**Please note that there is a primary method for creating sub-sensors, and it employs a distinct syntax compared to automation triggers. Here are a few examples to illustrate this.**
+
+### Sample Trigger or Value Template for a Binary Sensor
+### Yavne city and not Gan-Yavne city
 To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
 
 **Trigger for Automation**
@@ -231,16 +234,21 @@ In cities with multiple zones, relying solely on the SPLIT function won't be eff
 ```
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 ```
-
+**Custom Binary sensor / Helper**
+```
+{{ state_attr('binary_sensor.oref_alert', 'prev_data') | regex_search("תל אביב")
+and is_state('binary_sensor.oref_alert','on') }}
+```
 If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area **exactly** as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
 
 **Trigger for Automation**
 ```
-{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
+{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ')
 ```
 **Custom Binary sensor / Helper**
 ```
-{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ') and is_state('binary_sensor.oref_alert','on')}}
+{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')
+and is_state('binary_sensor.oref_alert','on') }}
 ```
 ## Red Alert Trigger for Particular Type of Alert:
 The **'cat'** attribute defines the alert type, with a range from 1 to 13, where 1 represents a missile attack, 6 indicates unauthorized aircraft penetration and 13 indicates the infiltration of terrorists. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
