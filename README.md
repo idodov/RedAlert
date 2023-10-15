@@ -30,12 +30,12 @@ While it's not obligatory, you have the option to create the sensor from the UI 
 # Installation Instructions
 This installation method relies on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method.
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
-3. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
-4. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
+2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
+3. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
 
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 
-5. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
+4. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
   `longitude: 34.7359077` & `elevation: 2` & `time_zone: Asia/Jerusalem`. 
 *You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/*
 ```yaml
@@ -54,8 +54,8 @@ admin:
 api:
 hadashboard:
 ```
-6. Create a file named **orefalert.py** in the **/config/appdaemon/apps/** directory.
-7. Paste the script code into the **orefalert.py** file and save it.
+5. Create a file named **orefalert.py** in the **/config/appdaemon/apps/** directory.
+6. Paste the script code into the **orefalert.py** file and save it.
 The script updates the sensors every *3 seconds*, or more frequently if you specify a shorter scan ```interval```. 
 ```orefalert.py
 import requests
