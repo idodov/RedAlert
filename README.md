@@ -1,8 +1,9 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
 **This script creates a Home Assistant binary sensor to track the status of Red Alerts in Israel. The sensor can be used in automations or to create sub-sensors/binary sensors from it.**
+
 The sensor provides a warning for all threats that the PIKUD HA-OREF alerts for, including red alerts (rocket and missile launches), unauthorized aircraft penetration, earthquakes, tsunami concerns, infiltration of terrorists, hazardous materials incidents, unconventional warfare, and any other threat. When the alert is received, the nature of the threat will appear at the beginning of the alert (e.g., 'ירי רקטות וטילים').
 
-Installing this script will create a Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also contains attributes that can be used for various purposes, such as category, ID, title, data, and description.
+Installing this script will create a Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
 
 ### Why did I choose this method and not REST sensor?
 Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. 
@@ -36,7 +37,7 @@ While it's not obligatory, you have the option to create the sensor from the UI 
 
 5. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for ```latitude: 31.9837528``` & 
   ```longitude: 34.7359077``` & ```elevation: 2``` & ```time_zone: Asia/Jerusalem```. 
-```
+```yaml
 ---
 appdaemon:
   latitude: 31.9837528
@@ -55,7 +56,7 @@ hadashboard:
 6. Create a file named **orefalert.py** in the **/config/appdaemon/apps/** directory.
 7. Paste the script code into the **orefalert.py** file and save it.
 The script updates the sensors every *3 seconds*, or more frequently if you specify a shorter scan ```interval```. 
-```
+```py
 import requests
 import time
 import json
@@ -190,7 +191,7 @@ class OrefAlert(Hass):
             self.log(f"Error: {e}")
 ```
 7. With a file editor, open the **/config/appdaemon/apps/apps.yaml** file and add/enter the following lines
-```
+```yaml
 orefalert:
   module: orefalert
   class: OrefAlert
@@ -198,6 +199,7 @@ orefalert:
 8. Restart/Start the **AppDaemon** addon.
 
 Once the AppDaemon addon is restarted, the new sensor *binary_sensor.oref_alert* will be created in Home Assistant. You can then use this sensor in automations or dashboards.
+
 ## Red Alert Trigger for Cities with Similar Character Patterns, Specific City/City Area*
 In Israel, city names can exhibit similar patterns, such as "Yavne" and "Gan Yavne," so it's essential to consider this when creating a binary sensor based on the 'data' attribute using the SPIT function rather than the REGEX_SEARCH function.
 Moreover, in Israel, 11 cities have been subdivided into multiple alert zones, each receiving a separate alert only when there is a threat to the population residing in that specific area. This implies that there are various approaches to creating a sensor for a city as a whole and a specific area within it. The cities that have been divided into multiple alert zones include Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo. For a list of city names and areas, please refer to this link: https://www.oref.org.il//12481-he/Pakar.aspx
@@ -211,9 +213,9 @@ To create a sensor that activates only when an attack occurs in a specific city 
 {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
 ### Sample Trigger or Value Template for a Binary Sensor - Ashdod (all areas):
-`
+```
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("אשדוד") }} 
-`
+```
 ## Red Alert Trigger for Particular Type of Alert:
 The **'cat'** attribute defines the alert type, with a range from 1 to 13, where 1 represents a missile attack, 6 indicates unauthorized aircraft penetration and 13 indicates the infiltration of terrorists. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
 ### Sample trigger alert for unauthorized aircraft penetration
@@ -225,6 +227,8 @@ The **'cat'** attribute defines the alert type, with a range from 1 to 13, where
 {{ state_attr('binary_sensor.oref_alert', 'cat') == '6'
 and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
+
+## How to create a sub-sensor
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Helpers' > 'Create' > 'Template' > 'Template binary sensor'** 
 
 ![b2](https://github.com/idodov/RedAlert/assets/19820046/ce3f4144-0051-40a5-ac2a-7e205e239c21)
@@ -233,7 +237,8 @@ You can generate a new binary sensor to monitor your city within the user interf
 ### Lovelace Card Example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
 ![TILIM](https://github.com/idodov/RedAlert/assets/19820046/f8ad780b-7e64-4c54-ab74-79e7ff56b780)
-```
+
+```yaml
 type: markdown
 content: >-
   <center><h3>{% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
@@ -249,14 +254,15 @@ content: >-
   **{{ state_attr('binary_sensor.oref_alert', 'desc') }}** {% endif %} </center>
 title: Red Alert
 ```
+
 ## Automation Examples
-You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to an LED matrix screen (for example, forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen).
+You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to an LED matrix screen (e.g forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen).
 
 ![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
 
 ### Send a notification to the phone (Home Assistant app) when there is an alert in Israel (all cities)
 *(Change ```#your phone#``` to your entity name)*
-```
+```yaml
 alias: Notify attack
 description: "Real-time Attack Notification"
 trigger:
@@ -279,7 +285,7 @@ As another illustration, you can configure your RGB lights to change colors repe
 ![20231013_221552](https://github.com/idodov/RedAlert/assets/19820046/6e60d5ca-12a9-4fd2-9b10-bcb19bf38a6d)
 
 *(Change ```light.#light-1#``` to your entity name)*
-```
+```yaml
 alias: Alert in TLV
 description: "When an alert occurs in Tel Aviv, the lights will cyclically change to red and blue for a duration of 30 seconds, after which they will revert to their previous states"
 trigger:
@@ -331,9 +337,8 @@ action:
       entity_id: scene.before_oref_alert
 mode: single
 ```
-
-## Display Attributes
-```
+## Sensor Data Attributes
+```yaml
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
 {{ state_attr('binary_sensor.oref_alert', 'data') }} #רשימת ישובים
 {{ state_attr('binary_sensor.oref_alert', 'desc') }} #הסבר התגוננות
@@ -348,7 +353,6 @@ mode: single
 {{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
 {{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} #מספר התרעות בו זמנית קודמות
 ```
-
 ### Example Data (when there is active alert / state is on)
 ```
 id: '133413399870000000'
