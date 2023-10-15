@@ -388,10 +388,9 @@ emoji: 🚨
 ## Sensor History
 Since it's a binary sensor based on attributes, Home Assistant history is only saved when the sensor transitions between on and off states. If you wish to maintain a complete history of all alerts, including the type of alert and the city, follow these steps:
 
-Create a new **TEXT helper** and name it "**Last Alert in Israel**".
-
-Develop a new automation that updates the text sensor each time a red alert occurs in Israel. You can use the following code.
-You have the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
+1. Create a new **TEXT helper** and name it "**Last Alert in Israel**".
+2. Develop a new automation that updates the text sensor each time a red alert occurs in Israel with the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
+You can use the following code (all alerts). 
 ```yaml
 alias: Lastest Alerts
 description: "Saving the last alert to INPUT_TEXT (all alerts)"
