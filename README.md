@@ -212,34 +212,60 @@ In Israel, city names can exhibit similar patterns, such as "Yavne" and "Gan Yav
 Moreover, in Israel, 11 cities have been subdivided into multiple alert zones, each receiving a separate alert only when there is a threat to the population residing in that specific area. This implies that there are various approaches to creating a sensor for a city as a whole and a specific area within it. The cities that have been divided into multiple alert zones include Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo. For a list of city names and areas, please refer to this link: https://www.oref.org.il//12481-he/Pakar.aspx
 ### Sample Trigger or Value Template for a Binary Sensor - Yavne city and not Gan-Yavne city:
 To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
+
+**Trigger for Automation**
 ```
 {{ "יבנה" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
+
+**Custom Binary sensor / Helper**
+
+When you're in the process of crafting a bespoke helper or sensor and encounter an absence of alerts, your custom helper or sensor will become inaccessible. To resolve this issue, opt for this specific code syntax instead.
+```
+{{ "יבנה" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ') and is_state('binary_sensor.oref_alert','on') }}
+```
 ### Sample Trigger or Value Template for a Binary Sensor - Cities With Multiple Zones:
-In cities with multiple zones, relying solely on the SPLIT function won't be effective if you've only defined the city name. If you need a sensor that triggers for all zones within the 11 cities divided into multiple alert zones, it's advisable to utilize the SEARCH_REGEX function instead of splitting the data. 
+In cities with multiple zones, relying solely on the SPLIT function won't be effective if you've only defined the city name. If you need a sensor that triggers for all zones within the 11 cities divided into multiple alert zones, it's advisable to utilize the SEARCH_REGEX function instead of splitting the data.
+
+**Trigger for Automation**
 ```
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 ```
+
 If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area *exactly* as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
 ```
 {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
+**Custom Binary sensor / Helper**
+```
+{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ') and is_state('binary_sensor.oref_alert','on')}}
+```
 ## Red Alert Trigger for Particular Type of Alert:
 The **'cat'** attribute defines the alert type, with a range from 1 to 13, where 1 represents a missile attack, 6 indicates unauthorized aircraft penetration and 13 indicates the infiltration of terrorists. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
 ### Sample trigger alert for unauthorized aircraft penetration
+**Trigger for Automation**
 ```
 {{ state_attr('binary_sensor.oref_alert', 'cat') == '6' }}
 ```
+**Custom Binary sensor / Helper**
+```
+{{ state_attr('binary_sensor.oref_alert', 'prev_cat') == '1' and is_state('binary_sensor.oref_alert','on') }}
+```
 ### Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz
+**Trigger for Automation**
 ```yaml
 {{ state_attr('binary_sensor.oref_alert', 'cat') == '6'
 and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
-
-## How to create a sub-sensor
+**Custom Binary sensor / Helper**
+```yaml
+{{ (state_attr('binary_sensor.oref_alert', 'prev_cat') == '1'
+and "כיסופים" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')) 
+and is_state('binary_sensor.oref_alert','on') }}
+```
+## How to create a custom sub-sensor
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Template' > 'Template binary sensor'** 
-
-![b2](https://github.com/idodov/RedAlert/assets/19820046/ce3f4144-0051-40a5-ac2a-7e205e239c21)
+![QQQ](https://github.com/idodov/RedAlert/assets/19820046/3d5e93ab-d698-4ce0-b341-6bee0e641e05)
 
 ## Usage *binary_sensor.oref_alert* for Home Assistant
 ### Lovelace Card Example
