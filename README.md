@@ -216,9 +216,10 @@ After restarting the AppDaemon addon, Home Assistant will generate the binary se
 ## Red Alert Trigger for Cities with Similar Character Patterns, Specific City, and Cities With Multiple Alert Zones
 In Israel, city names can exhibit similar patterns, such as "Yavne" and "Gan Yavne," so it's essential to consider this when creating a binary sensor based on the 'data' attribute using the SPIT function rather than the REGEX_SEARCH function. Also 11 cities have been subdivided into multiple alert zones, each receiving a separate alert only when there is a threat to the population residing in that specific area. This implies that there are various approaches to creating a sensor for a city as a whole and a specific area within it. The cities that have been divided into multiple alert zones include Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo. For a list of city names and areas, please refer to this link: https://www.oref.org.il//12481-he/Pakar.aspx
 
+## Sample Trigger or Value Template for a Binary Sensor
 **Please note that there is a primary method for creating sub-sensors, and it employs a distinct syntax compared to automation triggers. Here are a few examples to illustrate this.**
+Which is the preferred option custom sensors or automation triggers? It varies based on your specific requirements. In a nutshell, if your goal is to display data as a distinct entity on a dashboard, then exclusively employ custom sensor code. However, if your primary objective is to facilitate automation triggers, you have the flexibility to utilize both approaches.
 
-### Sample Trigger or Value Template for a Binary Sensor
 ### Yavne city and not Gan-Yavne city
 To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
 
@@ -233,6 +234,21 @@ When you're in the process of crafting a bespoke helper or sensor and encounter 
 ```
 {{ "יבנה" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ') and is_state('binary_sensor.oref_alert','on') }}
 ```
+### Sample trigger alert for multiple cities or city areas
+**Trigger for Automation**
+```
+{{ "אירוס" in state_attr('binary_sensor.oref_alert', 'data').split(', ')
+ or "בית חנן" in state_attr('binary_sensor.oref_alert', 'data').split(', ')
+ or "גן שורק" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
+```
+**Custom Binary sensor / Helper**
+```
+{{ ("אירוס" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')
+ or "בית חנן" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')
+ or "גן שורק" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', '))
+ and is_state('binary_sensor.oref_alert','on') }}
+```
+
 ### Sample Trigger or Value Template for a Binary Sensor - Cities With Multiple Zones:
 In cities with multiple zones, relying solely on the SPLIT function won't be effective if you've only defined the city name. If you need a sensor that triggers for all zones within the 11 cities divided into multiple alert zones, it's advisable to utilize the SEARCH_REGEX function instead of splitting the data.
 
