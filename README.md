@@ -48,6 +48,7 @@ Additionally, there exists a distinct emoji associated with each type of alert, 
 *You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/*
 ```yaml
 ---
+secrets: /config/secrets.yaml
 appdaemon:
   latitude: 31.9837528
   longitude: 34.7359077
