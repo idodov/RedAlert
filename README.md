@@ -480,7 +480,7 @@ Since it's a binary sensor based on attributes, Home Assistant history is only s
 4. Develop a new automation that updates the text sensor each time a red alert occurs in Israel with the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
 You can use the following code (all alerts). 
 ```yaml
-alias: Lastest Alerts
+alias: Last Alert
 description: "Saving the last alert to INPUT_TEXT (all alerts)"
 mode: single
 trigger:
