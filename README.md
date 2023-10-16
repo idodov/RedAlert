@@ -1,4 +1,6 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
+***Not Official Pikud Ha-Oref***. Short Hebrew version can be found here: https://github.com/idodov/RedAlert/blob/main/hebrew.md
+
 **This script creates a Home Assistant binary sensor to track the status of Red Alerts in Israel. The sensor can be used in automations or to create sub-sensors/binary sensors from it.**
 
 The sensor provides a warning for all threats that the PIKUD HA-OREF alerts for, including red alerts rocket and missile launches, unauthorized aircraft penetration, earthquakes, tsunami concerns, infiltration of terrorists, hazardous materials incidents, unconventional warfare, and any other threat. When the alert is received, the nature of the threat will appear at the beginning of the alert (e.g., 'ירי רקטות וטילים').
