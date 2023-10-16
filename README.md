@@ -46,6 +46,8 @@ Additionally, there exists a distinct emoji associated with each type of alert, 
 4. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
   `longitude: 34.7359077` & `elevation: 2` & `time_zone: Asia/Jerusalem`. 
 *You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/*
+
+*Make sure you have /config/secrets.yaml file. If not, create a file and save it empty, or remove `secrets: /config/secrets.yaml` line from the file appdaemon.yaml.*
 ```yaml
 ---
 secrets: /config/secrets.yaml
