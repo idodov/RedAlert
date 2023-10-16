@@ -43,7 +43,8 @@ Additionally, there exists a distinct emoji associated with each type of alert, 
 
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 
-4. Open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
+4. **Start** the ad-on
+5. In file editor open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
   `longitude: 34.7359077` & `elevation: 2` & `time_zone: Asia/Jerusalem`. 
 *You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/*
 
