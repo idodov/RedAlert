@@ -28,16 +28,7 @@ Additionally, there exists a distinct emoji associated with each type of alert, 
 ### Important Notice
 * If you choose to follow this guide before any active alerts are present, you may notice that the sub-sensor you later create status displays as "unavailable". This happens because the sensor doesn't have any stored data to reference until the first alert occurs, at which point it will be resolved.
 * This installation method relies on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
-* While it's not obligatory, you have the option to create the sensor from the UI Helper screen. The sensor resets its data after a Home Assistant Core restart, resulting in the loss of previous data. To address this, you can create a template binary sensor
-**before installation**. To do so:
-1. Navigate to the Home Assistant menu, then proceed to '**Settings**', '**Devices & Services**', '**Helpers**'
-2. Select '**Create a Helper**'.
-3. Choose '**Template**' and opt for a '**Template Binary Sensor**'.
-4. In the '**Name**' field, enter '**oref alert**'.
-5. In the '**State template**' field, input '**off**'.
-6. **submit** your settings to save your new helper.
-
-![b1](https://github.com/idodov/RedAlert/assets/19820046/e451fa8c-789b-4e88-ab98-4687b65f058e)
+* Following a HA system reboot, the sensor's historical data will be erased, and your custom sensors will remain inaccessible until the initial alert occurs.
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
