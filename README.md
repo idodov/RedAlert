@@ -298,6 +298,7 @@ You can generate a new binary sensor to monitor your city within the user interf
 ## Usage *binary_sensor.oref_alert* for Home Assistant
 ### Lovelace Card Example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
+
 ![TILIM](https://github.com/idodov/RedAlert/assets/19820046/f8ad780b-7e64-4c54-ab74-79e7ff56b780)
 
 ```yaml
