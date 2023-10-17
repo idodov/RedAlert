@@ -38,6 +38,7 @@
 6. נדרש לפתוח FILE EDITOR (ניתן להתקין דרך חנות ההרחבות) ולפתוח את הקובץ `config/appdaemon/appdaemon.yaml/`
 7. יש לעדכן את הנתונים הבאים: 
 את איזור הזמן (`time_zone`) יש לעדכן ל-"Asia/Jerusalem", את הגדרת קו הרוחב (`latitude`) יש לעדכן ל-"31.9837528", את הגדרת קו האורך (`longitude`) יש לעדכן ל-"34.7359077".
+אם לא קיים לכם קובץ secret.yaml בתיקיית config, מחקו את השורה: `secrets: /config/secrets.yaml`
 ```yaml
 ---
 secrets: /config/secrets.yaml
