@@ -244,7 +244,7 @@ You can generate a new binary sensor to monitor your city within the user interf
 Since it's a binary sensor based on attributes, Home Assistant history is only saved when the sensor transitions between on and off states. If you wish to maintain a complete history of all alerts, including the type of alert and the city, follow these steps:
 1. Create a new **TEXT helper**. You can generate a new text entity to monitor history, within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Text'**
 2. Name it "**Last Alert in Israel**".
-3. Change the **maximum length** from 100 to **255**.
+3. Change the **maximum length** to **255**.
    
 ![111Capture](https://github.com/idodov/RedAlert/assets/19820046/1008a3ba-65a1-4de5-96cb-6bef5d2f85b0)
 
