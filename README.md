@@ -17,7 +17,6 @@ I tried various methods in Home Assistant, but this script worked best for my ne
 *This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9*
 
 ### Sensor Capabilities
-![Capture](https://github.com/idodov/RedAlert/assets/19820046/79adf8ff-1369-472b-a463-0c1fe82a9c4d)
 ![Capture--](https://github.com/idodov/RedAlert/assets/19820046/2cdee4bb-0849-4dc1-bb78-c2e282300fdd)
 ![000](https://github.com/idodov/RedAlert/assets/19820046/22c3336b-cb39-42f9-8b32-195d9b6447b2)
 
@@ -391,7 +390,6 @@ action:
       entity_id: scene.before_oref_alert
 mode: single
 ```
-
 ### Get notification when it's safe
 The "desc" attribute provides information on the duration in minutes for staying inside the safe room. This automation will generate a timer based on the data from this attribute.
 Before implementing this automation, it's essential to create a TIMER helper.
@@ -413,8 +411,7 @@ action:
   - service: timer.start
     data:
       duration: >-
-        {{ (states.binary_sensor.oref_alert.attributes.desc |
-        regex_findall_index('\d+') | int) * 60 }}
+        {{ state_attr('binary_sensor.oref_alert', 'duration') }}
     target:
       entity_id: timer.oref_alert
   - service: notify.mobile_app_#your phone#
@@ -430,6 +427,7 @@ action:
 {{ state_attr('binary_sensor.oref_alert', 'data') }} #רשימת ישובים
 {{ state_attr('binary_sensor.oref_alert', 'desc') }} #הסבר התגוננות
 {{ state_attr('binary_sensor.oref_alert', 'cat') }} #קטגוריה
+{{ state_attr('binary_sensor.oref_alert', 'duration') }} #זמן שהייה במרחב מוגן בשניות לצורך כיוון טיימר
 {{ state_attr('binary_sensor.oref_alert', 'id') }} #מספר ייחודי
 {{ state_attr('binary_sensor.oref_alert', 'data_count') }} #מספר התרעות פעילות
 {{ state_attr('binary_sensor.oref_alert', 'emoji') }} #אימוג'י עבור סוג התרעה
@@ -438,6 +436,7 @@ action:
 {{ state_attr('binary_sensor.oref_alert', 'prev_data') }} #רשימת ישובים אחרונים
 {{ state_attr('binary_sensor.oref_alert', 'prev_desc') }} #הסבר התגוננות אחרון
 {{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
+{{ state_attr('binary_sensor.oref_alert', 'prev_duration') }} #זמן שהייה האחרון שהיה במרחב מוגן בשניות לצורך כיוון טיימר
 {{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} #מספר התרעות בו זמנית קודמות
 ```
 ### Example Data When There is Active Alert (state is on)
@@ -453,15 +452,15 @@ emoji: 🚀
 ```
 ### Example Data When There is No Active Alert (state is off):
 ```
-id: null
-cat: null
-title: null
-desc: null
-data: null
+id: ''
+cat: 0
+title: אין התרעות
+desc: ''
+data: ''
 data_count: 0
-icon: mdi:alert
-friendly_name: אין התרעות
-prev_cat: '1'
+duration: 0
+last_changed: ''
+prev_cat: 0
 prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
 prev_data: אזור תעשייה הדרומי אשקלון
