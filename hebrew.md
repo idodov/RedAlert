@@ -197,7 +197,7 @@ orefalert:
 ```
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 ```
-## שמירת נתונים היסוטריים
+## שמירת נתונים היסטוריים
 מכיוון שמדובר בחיישן בינארי, היסטוריית שלו נשמרת רק כאשר החיישן עובר בין מצבי מופעל וכיבוי. אם ברצונך לשמור על היסטוריה מלאה של כל ההתראות, כולל סוג ההתראה והעיר, בצע את השלבים הבאים:
 1. נדרש לייצר **מסייע טקסט** חדש בתוך ממשק המשתמש תחת **'הגדרות' > 'מכשירים ושירותים' > 'עוזרים' > 'צור עוזר' > 'טקסט'**
 2. יש להגדיר את שם עוזר ל-"**Last Alert in Israel**". אם מוגדר שם אחר, יש לעדכן את האוטומציה המובאת לדוגמא.
@@ -225,8 +225,6 @@ action:
     target:
       entity_id: input_text.last_alert_in_israel
 ```
-*The sensor's logbook will become available following the initial alert.*
-
 ![00Capture](https://github.com/idodov/RedAlert/assets/19820046/283b7be8-7888-4930-a9b8-0ce48054e9d6)
 
 
