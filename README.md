@@ -23,7 +23,7 @@ While the binary sensor's state switches to 'on' when there is an active alert i
 The icon and label of the sensor, presented on the dashboard via the default entity card, are subject to change dynamically with each new alert occurrence. To illustrate, in the event of a rocket attack, the icon depict a rocket. Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
 ## Important Notice
 * This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
-* After a Home Assistant system reboot, the historical data of your sensor will be erased. However, there is a quick workaround to address this issue by creating a text sensor that will retain the data even after a reboot. To implement this solution, please refer to the **Sensor History** section below.
+* As it a binary sensor, it doesn't save history data as you may want, there is a quick workaround to address this issue by creating a text sensor that will retain the data even after a reboot. To implement this solution, please refer to the **Sensor History** section below.
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
