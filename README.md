@@ -197,7 +197,9 @@ To ensure that the sensor is functioning correctly, it is recommended to follow 
 
 In case the sensor isn't functioning properly, make sure to review the logs. You can access the logs from the main AppDaemon page on the screen. This will help you identify and resolve any issues or problems that may arise.
 ## Red Alert Trigger for Cities with Similar Character Patterns, Specific City, and Cities With Multiple Alert Zones
-In Israel, city names can exhibit similar patterns, such as "Yavne" and "Gan Yavne," so it's essential to consider this when creating a binary sensor based on the 'data' attribute using the SPIT function rather than the REGEX_SEARCH function. Also 11 cities have been subdivided into multiple alert zones, each receiving a separate alert only when there is a threat to the population residing in that specific area. This implies that there are various approaches to creating a sensor for a city as a whole and a specific area within it. The cities that have been divided into multiple alert zones include Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo. For a list of city names and areas, please refer to this link: https://www.oref.org.il//12481-he/Pakar.aspx
+Choosing the right method for binary sensors based on city names and alert zones is crucial. To distinguish similar city names, like "Yavne" and "Gan Yavne", it's better to use the SPIT function instead of REGEX_SEARCH.
+
+For residents in cities with multiple alert zones: Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo - to set up triggers or sensors covering the entire city, it's recommended to use the REGEX_SEARCH function. This ensures they receive alerts for the whole city, even if it has multiple alert zones. This approach provides comprehensive coverage for these cities.
 ## Sample Trigger or Value Template for a Binary Sensor
 To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
 ### Yavne city and not Gan-Yavne city
@@ -292,8 +294,9 @@ content: >-
   **{{ state_attr('binary_sensor.oref_alert', 'desc') }}** {% endif %} </center>
 title: Red Alert
 ```
-Using this script, you have the flexibility to include additional information, such as the **precise time at which the alert was triggered**.
+Using this script, you have the flexibility to include additional information, such as the **precise time the alert was triggered**.
 ![TILIMA](https://github.com/idodov/RedAlert/assets/19820046/4ba18dde-ae0c-4415-a55d-80ed0c010cbc)
+![LAST](https://github.com/idodov/RedAlert/assets/19820046/ae52bc94-46ba-4cdb-b92b-36220500ee48)
 ```
 type: markdown
 content: >-
