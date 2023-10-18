@@ -25,9 +25,8 @@ The icon and label of the sensor, presented on the dashboard via the default ent
 Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
 
 ### Important Notice
-* If you choose to follow this guide before any active alerts are present, you may notice that the sub-sensor you later create status displays as "unavailable". This happens because the sensor doesn't have any stored data to reference until the first alert occurs, at which point it will be resolved.
-* This installation method relies on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
-* Following a HA system reboot, the sensor's historical data will be erased, and your custom sensors will remain inaccessible until the initial alert occurs.
+* This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
+* Following a HA *system* reboot, the sensor's historical data will be erased.
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
@@ -35,7 +34,7 @@ Additionally, there exists a distinct emoji associated with each type of alert, 
 
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 
-4. **Start** the ad-on
+4. **Start** the add-on
 5. In file editor open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
   `longitude: 34.7359077` & `time_zone: Asia/Jerusalem`. 
 *You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/*
@@ -192,7 +191,7 @@ orefalert:
   module: orefalert
   class: OrefAlert
 ```
-8. Restart/Start the **AppDaemon** addon.
+8. **Restart** the **AppDaemon** addon.
 
 After restarting the AppDaemon addon, Home Assistant will generate the binary sensor named **binary_sensor.oref_alert**. You can incorporate this sensor into your automations and dashboards. *All sensor attributes will remain empty until an alert occurs, at which point they will be updated.*
 
@@ -201,7 +200,9 @@ In Israel, city names can exhibit similar patterns, such as "Yavne" and "Gan Yav
 
 ## Sample Trigger or Value Template for a Binary Sensor
 **Please note that there is a primary method for creating sub-sensors, and it employs a distinct syntax compared to automation triggers. Here are a few examples to illustrate this.**
-Which is the preferred option custom sensors or automation triggers? It varies based on your specific requirements. In a nutshell, if your goal is to display data as a distinct entity on a dashboard, then exclusively employ custom sensor code. However, if your primary objective is to facilitate automation triggers, you have the flexibility to utilize both approaches.
+
+**Which is the preferred option custom sensors or automation triggers?**
+It varies based on your specific requirements. In a nutshell, if your goal is to display data as a distinct entity on a dashboard, then exclusively employ custom sensor code. However, if your primary objective is to facilitate automation triggers, you have the flexibility to utilize both approaches.
 
 ### Yavne city and not Gan-Yavne city
 To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
