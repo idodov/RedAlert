@@ -1,32 +1,29 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
-***Not Official Pikud Ha-Oref***. Short Hebrew version can be found here: https://github.com/idodov/RedAlert/blob/main/hebrew.md
+#### Code Update Notice for Enhanced Sensor Functionality
+After incorporating valuable feedback and suggestions, I have made refinements to the code to improve its flexibility in creating triggers and sensors. These enhancements are effective as of October 18, 2023. If you installed the script prior to this date, it is strongly recommended to replace the contents of your existing "orefalert.py" file with the code presented on this page. This ensures compatibility with the latest improvements and features.
+For those who installed the script earlier and choose not to update, please note that your sensors will continue to function during alarms. However, it is still advisable to consider updating for the benefits of improved performance and functionality.
+____
+***Not Official Pikud Ha-Oref***. 
+
+Short Hebrew version can be found here: https://github.com/idodov/RedAlert/blob/main/hebrew.md
 
 **This script creates a Home Assistant binary sensor to track the status of Red Alerts in Israel. The sensor can be used in automations or to create sub-sensors/binary sensors from it.**
 
 The sensor provides a warning for all threats that the PIKUD HA-OREF alerts for, including red alerts rocket and missile launches, unauthorized aircraft penetration, earthquakes, tsunami concerns, infiltration of terrorists, hazardous materials incidents, unconventional warfare, and any other threat. When the alert is received, the nature of the threat will appear at the beginning of the alert (e.g., 'ירי רקטות וטילים').
 
 Installing this script will create a Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
-
 ### Why did I choose this method and not REST sensor?
-Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. 
-
+Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. I tried various methods in Home Assistant, but this script worked best for my needs.
+### Sensor Capabilities
 While the binary sensor's state switches to 'on' when there is an active alert in Israel behavior may not suit everyone, the sensor is designed with additional attributes containing data such as cities, types of attacks and more. These attributes make it easy to create customized sub-sensors to meet individual requirements. For example, you can set up specific sensors that activate only when an alarm pertains to a particular city or area.
 
-I tried various methods in Home Assistant, but this script worked best for my needs.
-
-*This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9*
-
-### Sensor Capabilities
 ![Capture--](https://github.com/idodov/RedAlert/assets/19820046/2cdee4bb-0849-4dc1-bb78-c2e282300fdd)
 ![000](https://github.com/idodov/RedAlert/assets/19820046/22c3336b-cb39-42f9-8b32-195d9b6447b2)
 
-The icon and label of the sensor, presented on the dashboard via the default entity card, are subject to change dynamically with each new alert occurrence. To illustrate, in the event of a rocket attack, the icon depict a rocket.
-
-Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
-
-### Important Notice
+The icon and label of the sensor, presented on the dashboard via the default entity card, are subject to change dynamically with each new alert occurrence. To illustrate, in the event of a rocket attack, the icon depict a rocket. Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
+## Important Notice
 * This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
-* Following a HA *system* reboot, the sensor's historical data will be erased.
+* After a Home Assistant system reboot, the historical data of your sensor will be erased. However, there is a quick workaround to address this issue by creating a text sensor that will retain the data even after a reboot. To implement this solution, please refer to the **Sensor History** section below.
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
@@ -38,8 +35,6 @@ Additionally, there exists a distinct emoji associated with each type of alert, 
 5. In file editor open **/config/appdaemon/appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
   `longitude: 34.7359077` & `time_zone: Asia/Jerusalem`. 
 *You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/*
-
-*Make sure you have /config/secrets.yaml file. If not, create a file and save it empty, or remove `secrets: /config/secrets.yaml` line from the file appdaemon.yaml.*
 ```yaml
 ---
 secrets: /config/secrets.yaml
@@ -61,6 +56,7 @@ hadashboard:
 6. Paste the script code into the **orefalert.py** file and save it.
 The script updates the sensors every *3 seconds*, or more frequently if you specify a shorter scan ```interval```. 
 ```orefalert.py
+# UPDATED 18/10/2023
 import requests
 import re
 import time
@@ -194,67 +190,35 @@ orefalert:
 8. **Restart** the **AppDaemon** addon.
 
 After restarting the AppDaemon addon, Home Assistant will generate the binary sensor named **binary_sensor.oref_alert**. You can incorporate this sensor into your automations and dashboards. *All sensor attributes will remain empty until an alert occurs, at which point they will be updated.*
+## Verifying Sensor Functionality and Troubleshooting in AppDaemon
+To ensure that the sensor is functioning correctly, it is recommended to follow these steps after installing the script:
+1. Access the AppDaemon web interface, which can be found on the main page of the add-on in Home Assistant, located to the right of the "start" button. If you are accessing this page from your local network, you can use the following link: http://homeassistant.local:5050/aui/index.html#/state?tab=apps (If the link is broken, replace "homeassistant.local" with your Home Assistant's IP address).
+2. Within the state page, you can monitor the sensor to check if it is working as expected.
+![Untitled-1](https://github.com/idodov/RedAlert/assets/19820046/664ece42-52bb-498b-8b3c-12edf41aaedb)
 
+In case the sensor isn't functioning properly, make sure to review the logs. You can access the logs from the main AppDaemon page on the screen. This will help you identify and resolve any issues or problems that may arise.
 ## Red Alert Trigger for Cities with Similar Character Patterns, Specific City, and Cities With Multiple Alert Zones
 In Israel, city names can exhibit similar patterns, such as "Yavne" and "Gan Yavne," so it's essential to consider this when creating a binary sensor based on the 'data' attribute using the SPIT function rather than the REGEX_SEARCH function. Also 11 cities have been subdivided into multiple alert zones, each receiving a separate alert only when there is a threat to the population residing in that specific area. This implies that there are various approaches to creating a sensor for a city as a whole and a specific area within it. The cities that have been divided into multiple alert zones include Ashkelon, Beersheba, Ashdod, Herzliya, Hadera, Haifa, Jerusalem, Netanya, Rishon Lezion, Ramat Gan, and Tel Aviv-Yafo. For a list of city names and areas, please refer to this link: https://www.oref.org.il//12481-he/Pakar.aspx
-
 ## Sample Trigger or Value Template for a Binary Sensor
-**Please note that there is a primary method for creating sub-sensors, and it employs a distinct syntax compared to automation triggers. Here are a few examples to illustrate this.**
-
-**Which is the preferred option custom sensors or automation triggers?**
-It varies based on your specific requirements. In a nutshell, if your goal is to display data as a distinct entity on a dashboard, then exclusively employ custom sensor code. However, if your primary objective is to facilitate automation triggers, you have the flexibility to utilize both approaches.
-
-### Yavne city and not Gan-Yavne city
 To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
-
-**Trigger for Automation**
+### Yavne city and not Gan-Yavne city
 ```
 {{ "יבנה" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
-
-**Custom Binary sensor / Helper**
-
-When you're in the process of crafting a bespoke helper or sensor and encounter an absence of alerts, your custom helper or sensor will become inaccessible. To resolve this issue, opt for this specific code syntax instead.
-```
-{{ "יבנה" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ') and is_state('binary_sensor.oref_alert','on') }}
-```
-### Sample trigger alert for multiple cities or city areas
-**Trigger for Automation**
+### Multiple cities or city areas
 ```
 {{ "אירוס" in state_attr('binary_sensor.oref_alert', 'data').split(', ')
  or "בית חנן" in state_attr('binary_sensor.oref_alert', 'data').split(', ')
  or "גן שורק" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
 ```
-**Custom Binary sensor / Helper**
-```
-{{ ("אירוס" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')
- or "בית חנן" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')
- or "גן שורק" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', '))
- and is_state('binary_sensor.oref_alert','on') }}
-```
-
-### Sample Trigger or Value Template for a Binary Sensor - Cities With Multiple Zones:
+### Cities With Multiple Zones:
 In cities with multiple zones, relying solely on the SPLIT function won't be effective if you've only defined the city name. If you need a sensor that triggers for all zones within the 11 cities divided into multiple alert zones, it's advisable to utilize the SEARCH_REGEX function instead of splitting the data.
-
-**Trigger for Automation**
 ```
 {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
 ```
-**Custom Binary sensor / Helper**
-```
-{{ state_attr('binary_sensor.oref_alert', 'prev_data') | regex_search("תל אביב")
-and is_state('binary_sensor.oref_alert','on') }}
-```
 If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area **exactly** as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
-
-**Trigger for Automation**
 ```
 {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ')
-```
-**Custom Binary sensor / Helper**
-```
-{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')
-and is_state('binary_sensor.oref_alert','on') }}
 ```
 ## Red Alert Trigger for Particular Type of Alert:
 The **'cat'** attribute defines the alert type, with a range from 1 to 13, where 1 represents a missile attack, 6 indicates unauthorized aircraft penetration and 13 indicates the infiltration of terrorists. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
@@ -263,21 +227,11 @@ The **'cat'** attribute defines the alert type, with a range from 1 to 13, where
 ```
 {{ state_attr('binary_sensor.oref_alert', 'cat') == '6' }}
 ```
-**Custom Binary sensor / Helper**
-```
-{{ state_attr('binary_sensor.oref_alert', 'prev_cat') == '6' and is_state('binary_sensor.oref_alert','on') }}
-```
 ### Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz
 **Trigger for Automation**
 ```yaml
 {{ state_attr('binary_sensor.oref_alert', 'cat') == '6'
 and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
-```
-**Custom Binary sensor / Helper**
-```yaml
-{{ (state_attr('binary_sensor.oref_alert', 'prev_cat') == '6'
-and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'prev_data').split(', ')) 
-and is_state('binary_sensor.oref_alert','on') }}
 ```
 ## How to create a custom sub-sensor
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Template' > 'Template binary sensor'** 
@@ -287,6 +241,38 @@ You can generate a new binary sensor to monitor your city within the user interf
 ![QQQ](https://github.com/idodov/RedAlert/assets/19820046/3d5e93ab-d698-4ce0-b341-6bee0e641e05)
 
 ## Usage *binary_sensor.oref_alert* for Home Assistant
+### Sensor History
+Since it's a binary sensor based on attributes, Home Assistant history is only saved when the sensor transitions between on and off states. If you wish to maintain a complete history of all alerts, including the type of alert and the city, follow these steps:
+1. Create a new **TEXT helper**. You can generate a new text entity to monitor history, within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Text'**
+2. Name it "**Last Alert in Israel**".
+3. Change the **maximum length** from 100 to **255**.
+   
+![111Capture](https://github.com/idodov/RedAlert/assets/19820046/1008a3ba-65a1-4de5-96cb-6bef5d2f85b0)
+
+4. Develop a new automation that updates the text sensor each time a red alert occurs in Israel with the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
+You can use the following code (all alerts). 
+```yaml
+alias: Last Alert
+description: "Saving the last alert to INPUT_TEXT (all alerts)"
+mode: single
+trigger:
+  - platform: state
+    entity_id:
+      - binary_sensor.oref_alert
+    to: "on"
+condition: []
+action:
+  - service: input_text.set_value
+    data:
+      value: >-
+        {{ state_attr('binary_sensor.oref_alert', 'title') }} - {{
+        state_attr('binary_sensor.oref_alert', 'data') }}
+    target:
+      entity_id: input_text.last_alert_in_israel
+```
+*The sensor's logbook will become available following the initial alert.*
+
+![00Capture](https://github.com/idodov/RedAlert/assets/19820046/283b7be8-7888-4930-a9b8-0ce48054e9d6)
 ### Lovelace Card Example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
 
@@ -420,8 +406,6 @@ action:
       title: ההתרעה הוסרה
       message: אפשר לחזור לשגרה
 ```
-
-
 ## Sensor Data Attributes
 ```yaml
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
@@ -469,37 +453,5 @@ prev_data_count: 1
 emoji: 🚨
 ```
 "prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
-
-## Sensor History
-Since it's a binary sensor based on attributes, Home Assistant history is only saved when the sensor transitions between on and off states. If you wish to maintain a complete history of all alerts, including the type of alert and the city, follow these steps:
-
-1. Create a new **TEXT helper**. You can generate a new text entity to monitor history, within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Text'**
-2. Name it "**Last Alert in Israel**".
-3. Change the **maximum length** from 100 to **255**.
-   
-![111Capture](https://github.com/idodov/RedAlert/assets/19820046/1008a3ba-65a1-4de5-96cb-6bef5d2f85b0)
-
-4. Develop a new automation that updates the text sensor each time a red alert occurs in Israel with the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
-You can use the following code (all alerts). 
-```yaml
-alias: Last Alert
-description: "Saving the last alert to INPUT_TEXT (all alerts)"
-mode: single
-trigger:
-  - platform: state
-    entity_id:
-      - binary_sensor.oref_alert
-    to: "on"
-condition: []
-action:
-  - service: input_text.set_value
-    data:
-      value: >-
-        {{ state_attr('binary_sensor.oref_alert', 'title') }} - {{
-        state_attr('binary_sensor.oref_alert', 'data') }}
-    target:
-      entity_id: input_text.last_alert_in_israel
-```
-*The sensor's logbook will become available following the initial alert.*
-
-![00Capture](https://github.com/idodov/RedAlert/assets/19820046/283b7be8-7888-4930-a9b8-0ce48054e9d6)
+_______
+*This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9*
