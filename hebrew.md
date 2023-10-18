@@ -49,18 +49,25 @@ hadashboard:
 *לתשומת ליבך, בקוד מוגדר שהסנסור יבדוק מידע מול פיקוד העורף **כל 3 שניות**. ניתן לשנות את הנתון `interval = 3` למספר אחר. לדוגמא 1 = שנייה, 0.5 = חצי שנייה.* 
 ```orefalert.py
 import requests
+import re
 import time
 import json
 import codecs
 from datetime import datetime
 from appdaemon.plugins.hass.hassapi import Hass
 
-# Scan every 3 seconds
-interval = 3 
+interval = 3
 
 class OrefAlert(Hass):
     def initialize(self):
+        self.check_create_binary_sensor()
         self.run_every(self.poll_alerts, datetime.now(), interval)
+
+    def check_create_binary_sensor(self):
+        # Check if the binary_sensor exists
+        if not self.entity_exists("binary_sensor.oref_alert"):
+            self.set_state("binary_sensor.oref_alert", state="off", 
+            attributes={ "id":"", "cat": "", "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "prev_cat": 0, "prev_title": "", "prev_desc": "", "prev_data": "", "prev_data_count": 0,"prev_duration": 0, "prev_last_changed": ""},)
 
     def poll_alerts(self, kwargs):
         url = "https://www.oref.org.il/WarningMessages/alert/alerts.json"
@@ -70,37 +77,9 @@ class OrefAlert(Hass):
             'X-Requested-With': 'XMLHttpRequest',
             'Content-Type': 'application/json',
         }
-        icons = {
-                    1: "mdi:rocket-launch",
-                    2: "mdi:home-alert",
-                    3: "mdi:earth-box",
-                    4: "mdi:chemical-weapon",
-                    5: "mdi:waves",
-                    6: "mdi:airplane",
-                    7: "mdi:skull",
-                    8: "mdi:alert",
-                    9: "mdi:alert",
-                    10: "mdi:alert",
-                    11: "mdi:alert",
-                    12: "mdi:alert",
-                    13: "mdi:run-fast",
-                    }
+        icons = {1: "mdi:rocket-launch",2: "mdi:home-alert",3: "mdi:earth-box",4: "mdi:chemical-weapon",5: "mdi:waves",6: "mdi:airplane",7: "mdi:skull",8: "mdi:alert",9: "mdi:alert",10: "mdi:alert",11: "mdi:alert",12: "mdi:alert",13: "mdi:run-fast",}
         icon_alert = "mdi:alert"
-        emojis = {
-                    1: "🚀",
-                    2: "⚠️",
-                    3: "🌍",
-                    4: "☢️",
-                    5: "🌊",
-                    6: "🛩️",
-                    7: "💀",
-                    8: "❗",
-                    9: "❗",
-                    10: "❗",
-                    11: "❗",
-                    12: "❗",
-                    13: "👣👹",
-                    }
+        emojis = {1: "🚀",2: "⚠️",3: "🌍",4: "☢️",5: "🌊",6: "🛩️",7: "💀",8: "❗",9: "❗",10: "❗",11: "❗",12: "❗",13: "👣👹",}
         icon_emoji = "🚨"
         try:
             response = requests.get(url, headers=headers)
@@ -118,8 +97,15 @@ class OrefAlert(Hass):
                                 data_count = len(alerts_data.split(','))
                             else:
                                 data_count = 0
+                            duration_match = re.findall(r'\d+', data.get('desc', '0'))
+                            if duration_match:
+                                duration = int(duration_match[0]) * 60
+                            else:
+                                duration = 0
+                            self.set_state("input_text.last_alert_in_israel", attributes={"icon": icon_alert})
+                            # Create or update binary_sensor with attributes
                             self.set_state(
-                                "binary_sensor.oref_alert",
+                                "binary_sensor.oref_alert", 
                                 state="on",
                                 attributes={
                                     "id": data.get('id', None),
@@ -128,11 +114,14 @@ class OrefAlert(Hass):
                                     "desc": data.get('desc', None),
                                     "data": alerts_data,
                                     "data_count": data_count,
+                                    "duration": duration,
                                     "last_changed": datetime.now().isoformat(),
                                     "prev_cat": data.get('cat', None),
                                     "prev_title": alert_title,
                                     "prev_desc": data.get('desc', None),
                                     "prev_data": alerts_data,
+                                    "prev_data_count": data_count,
+                                    "prev_duration": duration,
                                     "prev_last_changed": datetime.now().isoformat(),
                                     "icon": icon_alert,
                                     "emoji":  icon_emoji,
@@ -140,40 +129,42 @@ class OrefAlert(Hass):
                                 },
                             )
                         else:
-# Clear the sensor if there is no data in the response
+                            # Clear the sensor if there is no data in the response
                             self.set_state(
-                                "binary_sensor.oref_alert",
+                                "binary_sensor.oref_alert", 
                                 state="off",
                                 attributes={
-                                    "id": None,
-                                    "cat": None,
-                                    "title": None,
-                                    "desc": None,
-                                    "data": None,
+                                    "id": "",
+                                    "cat": 0,
+                                    "title": "אין התרעות",
+                                    "desc": "",
+                                    "data": "",
                                     "data_count": 0,
-                                    "last_changed": datetime.now().isoformat(),
-                                    "icon": icon_alert,
+                                    "duration": 0,
                                     "emoji":  icon_emoji,
-                                    "friendly_name": "אין התרעות",
+                                    "icon": icon_alert,
+                                    "friendly_name": "Oref Alert",
                                 },
                             )
                     except json.JSONDecodeError:
                         self.log("Error: Invalid JSON format in the response.")
+                        icon_alert = "mdi:alert"
                 else:
-# Clear the binary_sensor state to off if there is no data in the response
+                    # Clear the input_text and set binary_sensor state to off if there is no data in the response
                     self.set_state(
                         "binary_sensor.oref_alert",
-                        state="off",
+                        state="off", 
                         attributes={
-                            "id": None,
-                            "cat": None,
-                            "title": None,
-                            "desc": None,
-                            "data": None,
+                            "id": "",
+                            "cat": 0,
+                            "title": "אין התרעות",
+                            "desc": "",
+                            "data": "",
                             "data_count": 0,
+                            "duration": 0,
                             "icon": icon_alert,
                             "emoji":  icon_emoji,
-                            "friendly_name": "אין התרעות",
+                            "friendly_name": "Oref Alert",
                         },
                     )
             else:
