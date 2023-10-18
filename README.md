@@ -276,7 +276,6 @@ action:
 Displays whether there is an alert, the number of active alerts, and their respective locations.
 
 ![TILIM](https://github.com/idodov/RedAlert/assets/19820046/f8ad780b-7e64-4c54-ab74-79e7ff56b780)
-
 ```yaml
 type: markdown
 content: >-
@@ -293,7 +292,43 @@ content: >-
   **{{ state_attr('binary_sensor.oref_alert', 'desc') }}** {% endif %} </center>
 title: Red Alert
 ```
+Using this script, you have the flexibility to include additional information, such as the **precise time at which the alert was triggered**.
+![TILIMA](https://github.com/idodov/RedAlert/assets/19820046/4ba18dde-ae0c-4415-a55d-80ed0c010cbc)
+```
+type: markdown
+content: >-
+  <center><h3>{% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
+  כרגע יש {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}{{
+  state_attr('binary_sensor.oref_alert', 'data_count') }} התרעות פעילות{% elif
+  state_attr('binary_sensor.oref_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
+  endif %}{% else %} אין התרעות פעילות{% endif %}</h3>
 
+  {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}<h2>{{
+  state_attr('binary_sensor.oref_alert', 'emoji') }} {{
+  state_attr('binary_sensor.oref_alert', 'title') }}</h2> <h3>{{
+  state_attr('binary_sensor.oref_alert', 'data') }}</h3> **{{
+  state_attr('binary_sensor.oref_alert', 'desc') }}** {% endif %}
+
+  {% if state_attr('binary_sensor.oref_alert', 'last_changed') |
+  regex_match("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\d{2}:\d{2}.\d+$") %}
+
+  {% set last_changed_timestamp = state_attr('binary_sensor.oref_alert',
+  'last_changed') | as_timestamp %}
+
+  {% set current_date = now().date() %}
+
+  {% if current_date == (last_changed_timestamp | timestamp_custom('%Y-%m-%d',
+  true)
+   | as_datetime).date() %}
+   ההתרעה האחרונה נשלחה היום בשעה {{ last_changed_timestamp | timestamp_custom('%H:%M', true) }}
+  {% else %}התרעה אחרונה נשלחה בתאריך {{ last_changed_timestamp |
+  timestamp_custom('%d/%m/%Y', true) }}, בשעה {{ last_changed_timestamp |
+  timestamp_custom('%H:%M', true) }}
+
+  {% endif %}
+  {% endif %}
+  </center>
+```
 ## Automation Examples
 You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to a LED matrix screen (in  pic: forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen).
 
