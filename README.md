@@ -111,7 +111,6 @@ class OrefAlert(Hass):
                                 duration = int(duration_match[0]) * 60
                             else:
                                 duration = 0
-                            self.set_state("input_text.last_alert_in_israel", attributes={"icon": icon_alert})
                             # Create or update binary_sensor with attributes
                             self.set_state(
                                 "binary_sensor.oref_alert", 
