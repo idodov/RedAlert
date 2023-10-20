@@ -335,6 +335,7 @@ content: >-
 **Another nicer way:**
 
 ![3333](https://github.com/idodov/RedAlert/assets/19820046/438c0870-56e8-461b-a1e5-aa24122a71bc)
+![000000](https://github.com/idodov/RedAlert/assets/19820046/2d6da8d4-2f84-46d4-9f52-baffdbd4b54b)
 ```
 type: markdown
 content: >-
