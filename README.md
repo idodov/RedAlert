@@ -332,6 +332,41 @@ content: >-
   {% endif %}
   </center>
 ```
+**Another nicer way:**
+
+![3333](https://github.com/idodov/RedAlert/assets/19820046/438c0870-56e8-461b-a1e5-aa24122a71bc)
+```
+type: markdown
+content: >-
+  <ha-icon icon="{{ state_attr('binary_sensor.oref_alert', 'icon')
+  }}"></ha-icon> {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0
+  %}כרגע יש {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}{{
+  state_attr('binary_sensor.oref_alert', 'data_count') }} התרעות פעילות{% elif
+  state_attr('binary_sensor.oref_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
+  endif %}{% else %}אין התרעות פעילות{% endif %}{% if
+  state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
+
+  <ha-alert alert-type="error" title="{{ state_attr('binary_sensor.oref_alert',
+  'title') }}">{{ state_attr('binary_sensor.oref_alert', 'data') }}</ha-alert>
+
+  <ha-alert alert-type="warning">{{ state_attr('binary_sensor.oref_alert',
+  'desc') }}</ha-alert>
+
+  {% endif %}
+
+  {% if state_attr('binary_sensor.oref_alert', 'last_changed') |
+  regex_match("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\d{2}:\d{2}.\d+$") %}
+
+  {% set last_changed_timestamp = state_attr('binary_sensor.oref_alert',
+  'last_changed') | as_timestamp %}
+
+  {% set current_date = now().date() %}{% if current_date ==
+  (last_changed_timestamp | timestamp_custom('%Y-%m-%d', true)
+   | as_datetime).date() %}<ha-alert alert-type="info">ההתרעה האחרונה נשלחה היום בשעה {{ last_changed_timestamp | timestamp_custom('%H:%M', true) }}
+  {% else %}התרעה אחרונה נשלחה בתאריך {{ last_changed_timestamp |
+  timestamp_custom('%d/%m/%Y', true) }}, בשעה {{ last_changed_timestamp |
+  timestamp_custom('%H:%M', true) }}{% endif %}{% endif %}</ha-alert>
+```
 ## Automation Examples
 You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to a LED matrix screen (in  pic: forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen).
 
