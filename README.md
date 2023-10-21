@@ -260,7 +260,7 @@ Israel is segmented into 30 metropolitan areas, allowing you to determine the ge
 אילת, בקעה, בקעת בית שאן, גוש דן, גליל עליון, גליל תחתון, דרום הגולן, דרום הנגב, הכרמל, המפרץ, העמקים, השפלה, ואדי ערה, יהודה, ים המלח, ירושלים, ירקון, לכיש,  מנשה, מערב הנגב, מערב לכיש, מרכז הגליל, מרכז הנגב, עוטף עזה, 
 ערבה, ,צפון הגולן, קו העימות, שומרון, שפלת יהודה ושרון
 ```
-{{ "גוש דן" in state_attr('binary_sensor.oref_alert', 'areas').split(', ')
+{{ "גוש דן" in state_attr('binary_sensor.oref_alert', 'areas').split(', ') }}
 ```
 ## Red Alert Trigger for Particular Type of Alert:
 The **'cat'** attribute defines the alert type, with a range from 1 to 13, where 1 represents a missile attack, 6 indicates unauthorized aircraft penetration and 13 indicates the infiltration of terrorists. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
