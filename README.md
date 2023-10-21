@@ -258,7 +258,7 @@ If you want to trigger a specific area, use the SPLIT function and make sure to 
 Israel is segmented into 30 metropolitan areas, allowing you to determine the general status of nearby towns without the need to specify each one individually. To achieve this, you can utilize the "areas" attribute. Here's the list of the 30 metropolitan areas in Israel, presented in alphabetical order:
 
 אילת, בקעה, בקעת בית שאן, גוש דן, גליל עליון, גליל תחתון, דרום הגולן, דרום הנגב, הכרמל, המפרץ, העמקים, השפלה, ואדי ערה, יהודה, ים המלח, ירושלים, ירקון, לכיש,  מנשה, מערב הנגב, מערב לכיש, מרכז הגליל, מרכז הנגב, עוטף עזה, 
-ערבה, ,צפון הגולן, קו העימות, שומרון, שפלת יהודה ושרון
+ערבה, צפון הגולן, קו העימות, שומרון, שפלת יהודה ושרון
 ```
 {{ "גוש דן" in state_attr('binary_sensor.oref_alert', 'areas').split(', ') }}
 ```
