@@ -430,7 +430,7 @@ action:
   - service: notify.mobile_app_#your phone#
     data:
       message: "{{ state_attr('binary_sensor.oref_alert', 'data') }}"
-      title: "{{ state_attr('binary_sensor.oref_alert', 'emoji') }} {{ state_attr('binary_sensor.oref_alert', 'title') }}"
+      title: "{{ state_attr('binary_sensor.oref_alert', 'title') }} ב{{ state_attr('binary_sensor.oref_alert', 'areas') }}"
 mode: single
 ```
 ### Change the light color when there is an active alert in all areas of Tel Aviv
