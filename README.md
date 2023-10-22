@@ -54,7 +54,7 @@ hadashboard:
 ```
 5. Create a file named **orefalert.py** in the **/config/appdaemon/apps/** directory.
 6. Paste the script code into the **orefalert.py** file and save it.
-The script updates the sensors every *3 seconds*, or more frequently if you specify a shorter scan ```interval```. 
+The script updates the sensors every *2 seconds*, or more frequently if you specify a shorter scan ```interval```. 
 ```
 # UPDATE 21/10/2023 - Add areas attribue
 # UPDATE 18/10/2023 - Improve flexibility
