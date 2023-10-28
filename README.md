@@ -1,7 +1,4 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
-#### Code Update Notice for Enhanced Sensor Functionality
-After incorporating valuable feedback and suggestions, I have made refinements to the code to improve its flexibility in creating triggers and sensors. These enhancements are effective as of October 18, 2023. If you installed the script prior to this date, it is strongly recommended to replace the contents of your existing "orefalert.py" file with the code presented on this page. This ensures compatibility with the latest improvements and features.
-For those who installed the script earlier and choose not to update, please note that your sensors will continue to function during alarms. However, it is still advisable to consider updating for the benefits of improved performance and functionality.
 ____
 ***Not Official Pikud Ha-Oref***. 
 
@@ -56,8 +53,7 @@ hadashboard:
 6. Paste the script code into the **orefalert.py** file and save it.
 The script updates the sensors every *2 seconds*, or more frequently if you specify a shorter scan ```interval```. 
 ```
-# UPDATE 21/10/2023 - Add areas attribue
-# UPDATE 18/10/2023 - Improve flexibility
+# UPDATE 28/10/2023 - Twicks for areas attribue
 import requests
 import re
 import time
@@ -113,32 +109,29 @@ class OrefAlert(Hass):
                                 duration = int(duration_match[0]) * 60
                             else:
                                 duration = 0            
+                            for area, cities in lamas['areas'].items():
+                                if isinstance(cities, str):
+                                    cities = cities.split(',')
+                                standardized_cities = [re.sub(r'[\-\,\(\)\s]+', '', city).strip() for city in cities]
+                                lamas['areas'][area] = standardized_cities
+
                             city_names = alerts_data.split(',')
-
-                            standardized_names = []
-                            for name in city_names:
-                                name = re.sub(r'[\-\,\(\)]', '', name).strip()
-                            standardized_names.append(name)
-
-                            # Standardize lamas
-                            for area, cities in lamas['areas'].items():
-                                standardized_cities = []
-                                for city in cities:
-                                    city = re.sub(r'[\-\,\(\)]', '', city).strip()  
-                                    standardized_cities.append(city)
-                                    lamas['areas'][area] = standardized_cities
-                            areas = set()
+                            standardized_names = [re.sub(r'[\-\,\(\)\s]+', '', name).strip() for name in city_names]
+                            areas = []
 
                             for area, cities in lamas['areas'].items():
-                                if alerts_data in cities:
-                                    areas.add(area)
+                                if any(city in cities for city in standardized_names):
+                                    areas.append(area)
+                            areas.sort()
 
-                            for area, cities in lamas['areas'].items():
-                                for city in standardized_names:
-                                    if city in cities:
-                                        areas.add(area)
-                                        
-                            areas_alert = ', '.join(areas)
+                            if len(areas) > 1:
+                                all_but_last = ", ".join(areas[:-1])
+                                areas_text = f"{all_but_last} ו{areas[-1]}"
+                            else:
+                                areas_text = areas[0]
+
+                            areas_text = areas_text.replace('השפלה', 'שפלה')
+                            areas_alert = areas_text
 
                             # Create or update binary_sensor with attributes
                             self.set_state(
