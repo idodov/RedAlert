@@ -328,6 +328,7 @@ content: >-
 title: Red Alert
 ```
 Using this script, you have the flexibility to include additional information, such as the **precise time the alert was triggered**.
+
 ![TILIMA](https://github.com/idodov/RedAlert/assets/19820046/4ba18dde-ae0c-4415-a55d-80ed0c010cbc)
 ![LAST](https://github.com/idodov/RedAlert/assets/19820046/ae52bc94-46ba-4cdb-b92b-36220500ee48)
 ```
