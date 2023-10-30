@@ -133,8 +133,8 @@ class OrefAlert(Hass):
                             areas_alert = areas_text
 
                             # Update input_text
-                            self.set_state("input_text.last_alert_in_israel", attributes={"icon": icon_alert})
-                            self.call_service("input_text/set_value", entity_id="input_text.last_alert_in_israel", value=f"{alert_title}: {areas_alert} - {alerts_data}")
+                            #self.set_state("input_text.last_alert_in_israel", attributes={"icon": icon_alert})
+                            #self.call_service("input_text/set_value", entity_id="input_text.last_alert_in_israel", value=f"{alert_title}: {areas_alert} - {alerts_data}")
 
                             # Create or update binary_sensor with attributes
                             self.set_state(
