@@ -169,7 +169,7 @@ class OrefAlert(Hass):
                                     "friendly_name": alert_title,
                                 },
                             )
-                                text_status = f"{alert_title}: ב{areas_alert} - {alerts_data}"
+                                text_status = f"{alert_title} ב{areas_alert} - {alerts_data}"
                                 if len(text_status) > 255:
                                     text_status = text_status[:252] + "..."
                                 self.set_state("input_text.last_alert_in_israel", state=f"{text_status}", attributes={"icon": f"{icon_alert}"},)
@@ -496,7 +496,7 @@ action:
 ```
 ## Usage *input_text.last_alert_in_israel* for Home Assistant
 This entity stores the alert history for viewing on the logbook screen.   
-![00Capture](https://github.com/idodov/RedAlert/assets/19820046/283b7be8-7888-4930-a9b8-0ce48054e9d6)
+![logobok](https://github.com/idodov/RedAlert/assets/19820046/725e93bc-3c0d-4a1c-8310-a5db08568c26)
 
 You can use this entity as an automation trigger for demonstration purposes. However, it's important to note that it's strongly advised not to rely on this entity for creating sub-sensors or triggers in production scenarios.
 
