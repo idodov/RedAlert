@@ -227,7 +227,7 @@ orefalert:
 ```
 8. **Restart** the **AppDaemon** addon.
 
-After restarting the AppDaemon addon, Home Assistant will generate the binary sensor named **binary_sensor.oref_alert**. You can incorporate this sensor into your automations and dashboards. *All sensor attributes will remain empty until an alert occurs, at which point they will be updated.*
+After restarting the AppDaemon addon, Home Assistant will generate two entities. Input text named *last alert in Israel* and a binary sensor named *oref alert* that you can incorporate into your automations and dashboards. *All sensor attributes will remain empty until an alert occurs, at which point they will be updated.*
 ## Verifying Sensor Functionality and Troubleshooting in AppDaemon
 To ensure that the sensor is functioning correctly, it is recommended to follow these steps after installing the script:
 1. Access the AppDaemon web interface, which can be found on the main page of the add-on in Home Assistant, located to the right of the "start" button. If you are accessing this page from your local network, you can use the following link: http://homeassistant.local:5050/aui/index.html#/state?tab=apps (If the link is broken, replace "homeassistant.local" with your Home Assistant's IP address).
