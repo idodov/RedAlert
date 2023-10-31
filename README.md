@@ -13,7 +13,7 @@ Installing this script will create a Home Assistant entity called ***binary_sens
 
 The second entity, ***input_text.last_alert_in_israel*** is primarily designed for historical alert records on the logbook screen. Please be aware that Home Assistant has an internal character limit of 255 characters for text entities. This limitation means that during significant events, like a large-scale attack involving multiple areas or cities, some data may be truncated or lost. Therefore, it is highly discouraged to use the text input entity as a trigger for automations or to create sub-sensors from it.
 
-*By default, for testing purposes, the entities will contain data related to cities inside the Gaza Strip. You can create test sensors and automations based on this data.*
+*By default, for testing purposes, the entities will contain data related to cities inside the Gaza Strip.*
 
 ### Why did I choose this method and not REST sensor?
 Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. I tried various methods in Home Assistant, but this script worked best for my needs.
@@ -25,7 +25,7 @@ While the binary sensor's state switches to 'on' when there is an active alert i
 
 The icon and label of the sensor, presented on the dashboard via the default entity card, are subject to change dynamically with each new alert occurrence. To illustrate, in the event of a rocket attack, the icon depict a rocket. Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
 ## Important Notice
-* This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
+This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
@@ -527,7 +527,7 @@ To test it, navigate to the Developer Tools State screen and select the "input_t
 
 ![eeeeee](https://github.com/idodov/RedAlert/assets/19820046/4b072463-19ff-4659-bf0e-9181f8e68e3d)
 
-To trigger your automation, clear the existing data and enter the city name you want to use as a trigger. Click **SET STATE** and the entity data will be updated, subsequently triggering your automation.
+To trigger your automation, clear the existing data and enter the city, area name or any word from the title you want to use as a trigger. Click **SET STATE** and the entity data will be updated, subsequently triggering your automation.
 
 It's important to note that while this approach may work for live data when alerts occur and function most of the time, **it's not recommended as the primary automation for alerts**, as it may not work reliably under all circumstances.
 ## Sensor Data Attributes
