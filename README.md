@@ -3,11 +3,18 @@
 ____
 Short Hebrew version can be found here: https://github.com/idodov/RedAlert/blob/main/hebrew.md
 ____
-**This script creates a Home Assistant binary sensor to track the status of Red Alerts in Israel. The sensor can be used in automations or to create sub-sensors/binary sensors from it.**
+**This script sets up two new entities in Home Assistant:**
+1. A binary sensor called ***binary_sensor.oref_alert*** to store PIKUD HA-OREF data. The sensor can be used in automations or to create sub-sensors/binary sensors from it.
+2. A text input entity named ***input_text.last_alert_in_israel*** for storing the latest alert information, mainly for historical purposes.
 
 The sensor provides a warning for all threats that the PIKUD HA-OREF alerts for, including red alerts rocket and missile launches, unauthorized aircraft penetration, earthquakes, tsunami concerns, infiltration of terrorists, hazardous materials incidents, unconventional warfare, and any other threat. When the alert is received, the nature of the threat will appear at the beginning of the alert (e.g., 'ירי רקטות וטילים').
 
 Installing this script will create a Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
+
+The second entity, **input_text.last_alert_in_israel** is primarily designed for historical alert records on the logbook screen. Please be aware that Home Assistant has an internal character limit of 255 characters for text entities. This limitation means that during significant events, like a large-scale attack involving multiple areas or cities, some data may be truncated or lost. Therefore, it is highly discouraged to use the text input entity as a trigger for automations or to create sub-sensors from it.
+
+*By default, for testing purposes, the binary sensor will contain data related to cities inside the Gaza Strip. You can create test sensors and automations based on this data.*
+
 ### Why did I choose this method and not REST sensor?
 Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. I tried various methods in Home Assistant, but this script worked best for my needs.
 ### Sensor Capabilities
@@ -19,7 +26,6 @@ While the binary sensor's state switches to 'on' when there is an active alert i
 The icon and label of the sensor, presented on the dashboard via the default entity card, are subject to change dynamically with each new alert occurrence. To illustrate, in the event of a rocket attack, the icon depict a rocket. Additionally, there exists a distinct emoji associated with each type of alert, which can be displayed alongside the alert message.
 ## Important Notice
 * This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
-* As it a binary sensor, it doesn't save history data as you may want, there is a quick workaround to address this issue by creating a text sensor that will retain the data. To implement this, please refer to the **Sensor History** section below.
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
@@ -52,7 +58,7 @@ hadashboard:
 6. Paste the script code into the **orefalert.py** file and save it.
 The script updates the sensors every *2 seconds*, or more frequently if you specify a shorter scan ```interval```. 
 ```
-# UPDATE 28/10/2023 - Twicks for areas attribue
+# UPDATE 31/10/2023 - Add Text Input entity
 import requests
 import re
 import time
@@ -69,9 +75,10 @@ class OrefAlert(Hass):
         self.run_every(self.poll_alerts, datetime.now(), interval, timeout=30)
 
     def check_create_binary_sensor(self):
-        # Check if the binary_sensor exists
         if not self.entity_exists("binary_sensor.oref_alert"):
             self.set_state("binary_sensor.oref_alert", state="off", attributes={ "id":"", "cat": "", "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "prev_cat": 0,  "prev_title": "מפוצצים את עזה", "prev_desc": "תישארו בחוץ", "prev_data" :"בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", "prev_data_count": 9,"prev_duration": 10, "prev_last_changed": datetime.now().isoformat()},)
+        if not self.entity_exists("input_text.last_alert_in_israel"):
+            self.set_state("input_text.last_alert_in_israel", state="ירי רקטות וטילים = בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", attributes={"editable": true, "min": 0, "max": 255, "mode": "text", "friendly_name": "Last Alert in Israel"},)
 
     def poll_alerts(self, kwargs):
         #url = "https://www.oref.org.il/WarningMessages/History/AlertsHistory.json"
@@ -91,6 +98,7 @@ class OrefAlert(Hass):
             response = requests.get(url, headers=headers)
             if response.status_code == 200:
                 response_data = codecs.decode(response.content, 'utf-8-sig')
+                current_value = self.get_state("binary_sensor.oref_alert", attribute="prev_data")
                 if response_data.strip():  
                     try:
                         data = json.loads(response_data)
@@ -107,7 +115,9 @@ class OrefAlert(Hass):
                             if duration_match:
                                 duration = int(duration_match[0]) * 60
                             else:
-                                duration = 0            
+                                duration = 0
+                                
+                            # Standardize lamas cities once globally
                             for area, cities in lamas['areas'].items():
                                 if isinstance(cities, str):
                                     cities = cities.split(',')
@@ -116,11 +126,13 @@ class OrefAlert(Hass):
 
                             city_names = alerts_data.split(',')
                             standardized_names = [re.sub(r'[\-\,\(\)\s]+', '', name).strip() for name in city_names]
+
                             areas = []
 
                             for area, cities in lamas['areas'].items():
                                 if any(city in cities for city in standardized_names):
                                     areas.append(area)
+
                             areas.sort()
 
                             if len(areas) > 1:
@@ -131,16 +143,10 @@ class OrefAlert(Hass):
 
                             areas_text = areas_text.replace('השפלה', 'שפלה')
                             areas_alert = areas_text
-
-                            # Update input_text
-                            #self.set_state("input_text.last_alert_in_israel", attributes={"icon": icon_alert})
-                            #self.call_service("input_text/set_value", entity_id="input_text.last_alert_in_israel", value=f"{alert_title}: {areas_alert} - {alerts_data}")
-
-                            # Create or update binary_sensor with attributes
-                            self.set_state(
-                                "binary_sensor.oref_alert", 
-                                state="on",
-                                attributes={
+                            
+                            
+                            if not current_value or current_value != alerts_data:
+                                self.set_state("binary_sensor.oref_alert", state="on", attributes={
                                     "id": data.get('id', None),
                                     "cat": data.get('cat', None),
                                     "title": alert_title,
@@ -163,6 +169,10 @@ class OrefAlert(Hass):
                                     "friendly_name": alert_title,
                                 },
                             )
+                                text_status = f"{alert_title}: ב{areas_alert} - {alerts_data}"
+                                if len(text_status) > 255:
+                                    text_status = text_status[:252] + "..."
+                                self.set_state("input_text.last_alert_in_israel", state=f"{text_status}", attributes={"icon": f"{icon_alert}"},)
                         else:
                             # Clear the sensor if there is no data in the response
                             self.set_state(
@@ -277,40 +287,7 @@ You can generate a new binary sensor to monitor your city within the user interf
 **Ensure that you employ the accurate syntax!**
 
 ![QQQ](https://github.com/idodov/RedAlert/assets/19820046/3d5e93ab-d698-4ce0-b341-6bee0e641e05)
-
 ## Usage *binary_sensor.oref_alert* for Home Assistant
-### Sensor History
-Since it's a binary sensor based on attributes, Home Assistant history is only saved when the sensor transitions between on and off states. If you wish to maintain a complete history of all alerts, including the type of alert and the city, follow these steps:
-1. Create a new **TEXT helper**. You can generate a new text entity to monitor history, within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Text'**
-2. Name it "**Last Alert in Israel**".
-3. Change the **maximum length** to **255**.
-   
-![111Capture](https://github.com/idodov/RedAlert/assets/19820046/1008a3ba-65a1-4de5-96cb-6bef5d2f85b0)
-
-4. Develop a new automation that updates the text sensor each time a red alert occurs in Israel with the flexibility to create this automation for all cities or for a specific city or area, depending on your preferences.
-You can use the following code (all alerts). 
-```yaml
-alias: Last Alert
-description: "Saving the last alert to INPUT_TEXT (all alerts)"
-mode: single
-trigger:
-  - platform: state
-    entity_id:
-      - binary_sensor.oref_alert
-    to: "on"
-condition: []
-action:
-  - service: input_text.set_value
-    data:
-      value: >-
-        {{ state_attr('binary_sensor.oref_alert', 'title') }} - {{
-        state_attr('binary_sensor.oref_alert', 'data') }}
-    target:
-      entity_id: input_text.last_alert_in_israel
-```
-*The sensor's logbook will become available following the initial alert.*
-
-![00Capture](https://github.com/idodov/RedAlert/assets/19820046/283b7be8-7888-4930-a9b8-0ce48054e9d6)
 ### Lovelace Card Example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
 
@@ -517,6 +494,42 @@ action:
       title: ההתרעה הוסרה
       message: אפשר לחזור לשגרה
 ```
+## Usage *input_text.last_alert_in_israel* for Home Assistant
+This entity stores the alert history for viewing on the logbook screen.   
+![00Capture](https://github.com/idodov/RedAlert/assets/19820046/283b7be8-7888-4930-a9b8-0ce48054e9d6)
+
+You can use this entity as an automation trigger for demonstration purposes. However, it's important to note that it's strongly advised not to rely on this entity for creating sub-sensors or triggers in production scenarios.
+
+To trigger a check for any city, area name or title, you can use the following line of code:
+```
+{{ 'אור יהודה' in states('input_text.last_alert_in_israel') }}
+```
+Here's an example automation for demonstration purposes:
+```
+mode: single
+trigger:
+  - platform: template
+    value_template: |
+      {{ 'אור יהודה' in states('input_text.last_alert_in_israel') }}
+condition: []
+action:
+  - service: light.turn_on
+    data:
+      flash: long
+      rgb_color:
+        - 255
+        - 0
+        - 0
+    target:
+      entity_id: light.#RGB_LIGHT#
+```
+To test it, navigate to the Developer Tools State screen and select the "input_text.last_alert_in_israel" entity. Here, you'll find the last historical data. If no alerts have occurred yet, you'll see a demo list of cities.
+
+![eeeeee](https://github.com/idodov/RedAlert/assets/19820046/4b072463-19ff-4659-bf0e-9181f8e68e3d)
+
+To trigger your automation, clear the existing data and enter the city name you want to use as a trigger. Click **SET STATE** and the entity data will be updated, subsequently triggering your automation.
+
+It's important to note that while this approach may work for live data when alerts occur and function most of the time, **it's not recommended as the primary automation for alerts**, as it may not work reliably under all circumstances.
 ## Sensor Data Attributes
 ```yaml
 {{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
