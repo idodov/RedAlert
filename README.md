@@ -14,14 +14,13 @@ While the binary sensor's state switches to 'on' when there is an active alert i
 Until we all have an official Home Assistant add-on to handle 'Red Alert' situations, there are several approaches for implementing the data into Home Assistant. One of them is creating a REST sensor and adding the code to the *configuration.yaml* file. However, using a binary sensor (instead of a 'REST sensor') is a better choice because it accurately represents binary states (alerted or not alerted), is more compatible with Home Assistant tools, and simplifies automation and user configuration. It offers a more intuitive and standardized approach to monitoring alert status. I tried various methods in Home Assistant, but this script worked best for my needs.
 </details>
 
-Installing this script will create a Home Assistant entity called ***binary_sensor.oref_alert***. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
-
-The second entity, ***input_text.last_alert_in_israel*** is primarily designed for historical alert records on the logbook screen. Please be aware that Home Assistant has an internal character limit of 255 characters for text entities. This limitation means that during significant events, like a large-scale attack involving multiple areas or cities, some data may be truncated or lost. Therefore, it is highly discouraged to use the text input entity as a trigger for automations or to create sub-sensors from it.
-
 *By default, for testing purposes, the entities will contain data related to cities inside the Gaza Strip.*
+
 ## Important Notice
 This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
+
 # Installation Instructions
+
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
 3. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
@@ -222,7 +221,27 @@ orefalert:
 ```
 8. **Restart** the **AppDaemon** addon.
 
-After restarting the AppDaemon addon, Home Assistant will generate two entities. Input text named *last alert in Israel* and a binary sensor named *oref alert* that you can incorporate into your automations and dashboards. *All sensor attributes will remain empty until an alert occurs, at which point they will be updated.*
+After restarting the AppDaemon addon, Home Assistant will generate two entities. The first entity called ***binary_sensor.oref_alert***, is the main sensor. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
+
+You can use any attribue from the sensor. For example, to show the title on lovelace card, use this code syntax:
+
+```{{ state_attr('binary_sensor.oref_alert', 'title') }}```
+
+| Attribute name | Means | Example |
+| ----- | ----- | ----- |
+| cat | Category number. can be from 1 to 13 | 1 |
+| title | Attack type in text | ירי רקטות וטילים |
+| data | List of cities | תל אביב - מרכז העיר |
+| areas | List of areas | גוש דן |
+| desc | Explain what to do |  היכנסו למרחב המוגן ושהו בו 10 דקות |
+| duration | How many seconds to be in the safe room | 600 |
+| id | Id of the alert | 133413399870000000 |
+| data_count | Number of cities that are attacked | 1 |
+| emoji | Icon for type of attack | 🚀 |
+| prev_* | Last data from each attribue | *stores the most recent information when the sensor was active. These attributes will become available after the first alert.* |
+
+The second entity, ***input_text.last_alert_in_israel*** is primarily designed for historical alert records on the logbook screen. Please be aware that Home Assistant has an internal character limit of 255 characters for text entities. This limitation means that during significant events, like a large-scale attack involving multiple areas or cities, some data may be truncated or lost. Therefore, it is highly discouraged to use the text input entity as a trigger for automations or to create sub-sensors from it.
+
 ## Verifying Sensor Functionality and Troubleshooting in AppDaemon
 To ensure that the sensor is functioning correctly, it is recommended to follow these steps after installing the script:
 1. Access the AppDaemon web interface, which can be found on the main page of the add-on in Home Assistant, located to the right of the "start" button. If you are accessing this page from your local network, you can use the following link: http://homeassistant.local:5050/aui/index.html#/state?tab=apps (If the link is broken, replace "homeassistant.local" with your Home Assistant's IP address).
@@ -275,8 +294,7 @@ The **'cat'** attribute defines the alert type, with a range from 1 to 13. You h
 ```
 {{ state_attr('binary_sensor.oref_alert', 'cat') == '6' }}
 ```
-### Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz
-**Trigger for Automation**
+***Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz***
 ```yaml
 {{ state_attr('binary_sensor.oref_alert', 'cat') == '6'
 and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
@@ -530,56 +548,5 @@ To test it, navigate to the Developer Tools State screen and select the "input_t
 To trigger your automation, clear the existing data and enter the city, area name or any word from the title you want to use as a trigger. Click **SET STATE** and the entity data will be updated, subsequently triggering your automation.
 
 It's important to note that while this approach may work for live data when alerts occur and function most of the time, **it's not recommended as the primary automation for alerts**, as it may not work reliably under all circumstances.
-## Sensor Data Attributes
-```yaml
-{{ state_attr('binary_sensor.oref_alert', 'title') }} #כותרת 
-{{ state_attr('binary_sensor.oref_alert', 'data') }} #רשימת ישובים
-{{ state_attr('binary_sensor.oref_alert', 'areas') }} #רשימת אזורים
-{{ state_attr('binary_sensor.oref_alert', 'desc') }} #הסבר התגוננות
-{{ state_attr('binary_sensor.oref_alert', 'cat') }} #קטגוריה
-{{ state_attr('binary_sensor.oref_alert', 'duration') }} #זמן שהייה במרחב מוגן בשניות לצורך כיוון טיימר
-{{ state_attr('binary_sensor.oref_alert', 'id') }} #מספר ייחודי
-{{ state_attr('binary_sensor.oref_alert', 'data_count') }} #מספר התרעות פעילות
-{{ state_attr('binary_sensor.oref_alert', 'emoji') }} #אימוג'י עבור סוג התרעה
-
-{{ state_attr('binary_sensor.oref_alert', 'prev_title') }} #כותרת אחרונה שהיתה פעילה
-{{ state_attr('binary_sensor.oref_alert', 'prev_data') }} #רשימת ישובים אחרונים
-{{ state_attr('binary_sensor.oref_alert', 'prev_areas') }} #רשימת אזורים אחרונים
-{{ state_attr('binary_sensor.oref_alert', 'prev_desc') }} #הסבר התגוננות אחרון
-{{ state_attr('binary_sensor.oref_alert', 'prev_cat') }} #קטגוריה אחרונה
-{{ state_attr('binary_sensor.oref_alert', 'prev_duration') }} #זמן שהייה האחרון שהיה במרחב מוגן בשניות לצורך כיוון טיימר
-{{ state_attr('binary_sensor.oref_alert', 'prev_data_count') }} #מספר התרעות בו זמנית קודמות
-```
-### Example Data When There is Active Alert (state is on)
-```
-id: '133413399870000000'
-cat: '1'
-title: ירי רקטות וטילים
-friendly_name:  ירי רקטות וטילים
-data: נחל עוז
-desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-data_count: 1
-areas: עוטף עזה
-emoji: 🚀
-```
-### Example Data When There is No Active Alert (state is off):
-```
-id: ''
-cat: 0
-title: אין התרעות
-desc: ''
-data: ''
-data_count: 0
-duration: 0
-last_changed: ''
-prev_cat: 0
-prev_title: ירי רקטות וטילים
-prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-prev_data: אזור תעשייה הדרומי אשקלון
-prev_areas: מערכ לכיש
-prev_data_count: 1
-emoji: 🚨
-```
-"prev_*" stores the most recent information when the sensor was active. These attributes will become available after the first alert.
 _______
 *This code is based on and inspired by https://gist.github.com/shahafc84/5e8b62cdaeb03d2dfaaf906a4fad98b9*
