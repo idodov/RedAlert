@@ -223,10 +223,19 @@ orefalert:
 
 After restarting the AppDaemon addon, Home Assistant will generate two entities. The first entity called ***binary_sensor.oref_alert***, is the main sensor. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
 
+The second entity, ***input_text.last_alert_in_israel*** is primarily designed for historical alert records on the logbook screen. Please be aware that Home Assistant has an internal character limit of 255 characters for text entities. This limitation means that during significant events, like a large-scale attack involving multiple areas or cities, some data may be truncated or lost. Therefore, it is highly discouraged to use the text input entity as a trigger for automations or to create sub-sensors from it.
+
+## Verifying Sensor Functionality and Troubleshooting in AppDaemon
+To ensure that the sensor is functioning correctly, it is recommended to follow these steps after installing the script:
+1. Access the AppDaemon web interface, which can be found on the main page of the add-on in Home Assistant, located to the right of the "start" button. If you are accessing this page from your local network, you can use the following link: http://homeassistant.local:5050/aui/index.html#/state?tab=apps (If the link is broken, replace "homeassistant.local" with your Home Assistant's IP address).
+2. Within the state page, you can monitor the sensor to check if it is working as expected.
+![Untitled-1](https://github.com/idodov/RedAlert/assets/19820046/664ece42-52bb-498b-8b3c-12edf41aaedb)
+
+In case the sensor isn't functioning properly, make sure to review the logs. You can access the logs from the main AppDaemon page on the screen. This will help you identify and resolve any issues or problems that may arise.
+## binary_sensor.oref_alert Attribues
 You can use any attribue from the sensor. For example, to show the title on lovelace card, use this code syntax:
 
 ```{{ state_attr('binary_sensor.oref_alert', 'title') }}```
-
 | Attribute name | Means | Example |
 | ----- | ----- | ----- |
 | cat | Category number. can be from 1 to 13 | 1 |
@@ -240,15 +249,6 @@ You can use any attribue from the sensor. For example, to show the title on love
 | emoji | Icon for type of attack | 🚀 |
 | prev_* | Last data from each attribue | *stores the most recent information when the sensor was active. These attributes will become available after the first alert.* |
 
-The second entity, ***input_text.last_alert_in_israel*** is primarily designed for historical alert records on the logbook screen. Please be aware that Home Assistant has an internal character limit of 255 characters for text entities. This limitation means that during significant events, like a large-scale attack involving multiple areas or cities, some data may be truncated or lost. Therefore, it is highly discouraged to use the text input entity as a trigger for automations or to create sub-sensors from it.
-
-## Verifying Sensor Functionality and Troubleshooting in AppDaemon
-To ensure that the sensor is functioning correctly, it is recommended to follow these steps after installing the script:
-1. Access the AppDaemon web interface, which can be found on the main page of the add-on in Home Assistant, located to the right of the "start" button. If you are accessing this page from your local network, you can use the following link: http://homeassistant.local:5050/aui/index.html#/state?tab=apps (If the link is broken, replace "homeassistant.local" with your Home Assistant's IP address).
-2. Within the state page, you can monitor the sensor to check if it is working as expected.
-![Untitled-1](https://github.com/idodov/RedAlert/assets/19820046/664ece42-52bb-498b-8b3c-12edf41aaedb)
-
-In case the sensor isn't functioning properly, make sure to review the logs. You can access the logs from the main AppDaemon page on the screen. This will help you identify and resolve any issues or problems that may arise.
 ## Red Alert Trigger for Cities with Similar Character Patterns, Specific City, and Cities With Multiple Alert Zones
 Choosing the right method for binary sensors based on city names and alert zones is crucial. To distinguish similar city names, like "Yavne" and "Gan Yavne", it's better to use the SPLIT function instead of REGEX_SEARCH.
 
