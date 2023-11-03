@@ -72,7 +72,7 @@ class OrefAlert(Hass):
         if not self.entity_exists("binary_sensor.oref_alert"):
             self.set_state("binary_sensor.oref_alert", state="off", attributes={ "id":"", "cat": "", "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "prev_cat": 0,  "prev_title": "מפוצצים את עזה", "prev_desc": "תישארו בחוץ", "prev_data" :"בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", "prev_data_count": 9,"prev_duration": 10, "prev_last_changed": datetime.now().isoformat()},)
         if not self.entity_exists("input_text.last_alert_in_israel"):
-            self.set_state("input_text.last_alert_in_israel", state="ירי רקטות וטילים = בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", attributes={"editable": true, "min": 0, "max": 255, "mode": "text", "friendly_name": "Last Alert in Israel"},)
+            self.set_state("input_text.last_alert_in_israel", state="ירי רקטות וטילים = בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", attributes={"min": 0, "max": 255, "mode": "text", "friendly_name": "Last Alert in Israel"},)
 
     def poll_alerts(self, kwargs):
         #url = "https://www.oref.org.il/WarningMessages/History/AlertsHistory.json"
