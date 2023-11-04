@@ -1,7 +1,8 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
 * ***Not Official Pikud Ha-Oref***
 * Short Hebrew version can be found here: https://github.com/idodov/RedAlert/blob/main/hebrew.md
-* Installation Video Guide: https://youtu.be/pv6MN4NkJf8
+* Installation Video Guide: https://youtu.be/pv6MN4NkJf8u
+* Usesage Video: https://youtu.be/mlDJ1sKk0Y0
 ____
 **This script sets up two new entities in Home Assistant:**
 1. A binary sensor called ***binary_sensor.oref_alert*** to store PIKUD HA-OREF data. The sensor can be used in automations or to create sub-sensors/binary sensors from it.
