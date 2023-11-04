@@ -1,7 +1,8 @@
 # התרעות פיקוד העורף במערכת HomeAssistant (AppDaemon)
 ***זהו אינו תוסף רשמי של פיקוד העורף.*** 
 * לגרסה באנגלית https://github.com/idodov/RedAlert
-* מדריך וידאו: https://youtu.be/pv6MN4NkJf8
+* מדריך התקנה: https://youtu.be/pv6MN4NkJf8
+* מדריך שימוש: https://youtu.be/mlDJ1sKk0Y0
 _____
 **הסקריפט מייצר שתי ישויות חדשות ב-Home Assistant:**
 1. יישות/חיישן בינארי בשם ***binary_sensor.oref_alert*** לאחסון נתוני פיקוד העורף. החיישן יכול לשמש באוטומציות או ליצירת תת חיישנים/חיישנים בינאריים ממנו.
