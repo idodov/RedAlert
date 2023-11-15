@@ -18,6 +18,7 @@ secrets: /homeassistant/secrets.yaml
 The latest appdaemon files are no longer situated in the config directory, causing add-ons like **File Editor** to be unable to access them. Using a **Samba Share** allows you to access and open these files with any file editor.
 
 *In the provided screenshot, the **VSCode** add-on can be accessed by pressing ctrl+o and selecting the **addon_configs** folder.*
+
 ![ac](https://github.com/idodov/RedAlert/assets/19820046/f249ae47-b5b7-4339-8b61-42321f754922)
 ____
 **This script sets up two new entities in Home Assistant:**
@@ -46,7 +47,7 @@ This installation method **relies** on Supervised Add-ons, which are exclusively
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 
 4. **Start** the add-on
-5. In file editor open **\\homeassistant\addon_configs\appdaemon\appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
+5. In file editor open **\addon_configs\appdaemon\appdaemon.yaml** and make this changes under *appdeamon* section for `latitude: 31.9837528` & 
   `longitude: 34.7359077` & `time_zone: Asia/Jerusalem`. 
 *You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/*
 ```yaml
@@ -66,7 +67,7 @@ admin:
 api:
 hadashboard:
 ```
-5. Create a file named **orefalert.py** in the **\\homeassistant\addon_configs\appdaemon\apps** directory.
+5. Create a file named **orefalert.py** in the **\addon_configs\appdaemon\apps** directory.
 6. Paste the script code into the **orefalert.py** file and save it.
 The script updates the sensors every *2 seconds*, or more frequently if you specify a shorter scan ```interval```. 
 ```
@@ -231,7 +232,7 @@ class OrefAlert(Hass):
         except Exception as e:
             self.log(f"Error: {e}")
 ```
-7. With a file editor, open the **\\homeassistant\addon_configs\appdaemon\apps\apps.yaml** file and add/enter the following lines
+7. With a file editor, open the **\addon_configs\appdaemon\apps\apps.yaml** file and add/enter the following lines
 ```yaml
 orefalert:
   module: orefalert
