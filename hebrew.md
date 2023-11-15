@@ -1,9 +1,23 @@
 # התרעות פיקוד העורף במערכת HomeAssistant (AppDaemon)
 ***זהו אינו תוסף רשמי של פיקוד העורף.*** 
 * לגרסה באנגלית https://github.com/idodov/RedAlert
-* מדריך התקנה: https://youtu.be/pv6MN4NkJf8
 * מדריך שימוש: https://youtu.be/mlDJ1sKk0Y0
+____
+**הערות חשובות!**
+החל מגרסה 0.15.2 של תוסף AppDaemon, השתנה נתיב הקבצים, והוא אינו נגיש דרך תיקיית ה-config. כתוצאה מכך, תוספים כגון: "FILE EDITOR" יותרו ללא גישה.
+על מנת לגשת לקבצים נדרש להשתמש באמצעות פקודות SSH או תוספים כדוגמת SAMBA SHARE או VSCODE (מומלץ), ולגשת לתייקה **addon_configs**.
+
+במידה ובקובץ appdaemon.yaml קיימת שורת הקוד הבאה:
+```
+secrets: /config/secrets.yaml
+```
+נדרש להחליפה לשורת הקוד:
+```
+secrets: /homeassistant/secrets.yaml
+```
+בצילום מסך זה מוצג תוסף VSCODE. לחיצה על מקשי ctrl+o תפתח חלון בו יש לבחור את תיקיית **addon_configs**
 _____
+
 **הסקריפט מייצר שתי ישויות חדשות ב-Home Assistant:**
 1. יישות/חיישן בינארי בשם ***binary_sensor.oref_alert*** לאחסון נתוני פיקוד העורף. החיישן יכול לשמש באוטומציות או ליצירת תת חיישנים/חיישנים בינאריים ממנו.
 2. ישות קלט טקסט בשם ***input_text.last_alert_in_israel*** לאחסון מידע ההתרעה העדכני, בעיקר למטרות תצוגת היסטוריית התרעות.
@@ -28,7 +42,7 @@ _____
 את איזור הזמן (`time_zone`) יש לעדכן ל-"Asia/Jerusalem", את הגדרת קו הרוחב (`latitude`) יש לעדכן ל-"31.9837528", את הגדרת קו האורך (`longitude`) יש לעדכן ל-"34.7359077".
 ```yaml
 ---
-secrets: /config/secrets.yaml
+secrets: /homeassistant/secrets.yaml
 appdaemon:
   latitude: 31.9837528
   longitude: 34.7359077
