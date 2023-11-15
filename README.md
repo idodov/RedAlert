@@ -1,4 +1,4 @@
-## Important Notice:
+Important Notice:
 Starting from version 0.15.2, AppDaemon has changed the location of its files. If you encounter errors and the add-on fails to start, locate the file **appdaemon.yaml** and add **#** to the line referencing the secret file. This action will resolve the error.
 -----
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
