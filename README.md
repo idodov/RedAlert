@@ -15,7 +15,7 @@ You will need to adjust this to:
 ```
 secrets: /homeassistant/secrets.yaml
 ```
-The latest appdaemon files are no longer situated in the config directory, causing add-ons like **File Editor** to be unable to access them. Using a **Samba Share** allows you to access and open these files with any file editor. In the provided screenshot, the **VSCode** add-on can be accessed by pressing ctrl+o and selecting the addon_directory folder.
+The latest appdaemon files are no longer situated in the config directory, causing add-ons like **File Editor** to be unable to access them. Using a **Samba Share** allows you to access and open these files with any file editor. *In the provided screenshot, the **VSCode** add-on can be accessed by pressing ctrl+o and selecting the **addon_configs** folder.*
 ![ac](https://github.com/idodov/RedAlert/assets/19820046/f249ae47-b5b7-4339-8b61-42321f754922)
 ____
 **This script sets up two new entities in Home Assistant:**
