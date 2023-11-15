@@ -5,7 +5,17 @@
 * Usesage Video: https://youtu.be/mlDJ1sKk0Y0
 ____
 **Important Notice:**
-Starting from version 0.15.2, AppDaemon has changed the location of its files. If you encounter errors and the add-on fails to start, locate the file **appdaemon.yaml** and add **#** to the line referencing the secret file. This action will resolve the error.
+Starting from version 0.15.2, AppDaemon has changed the location of its files.
+With this release, the appdaemon data folder will migrate/move out of the Home Assistant configuration folder into a dedicated folder for this add-on. You can access add-on configuration folders using SSH, Samba, VSCode, and similar add-ons by accessing the **addon_configs** folder/share.
+
+If you have this in your appdaemon.yaml file:
+```
+secrets: /config/secrets.yaml
+```
+You will need to adjust this to:
+```
+secrets: /homeassistant/secrets.yaml
+```
 ____
 **This script sets up two new entities in Home Assistant:**
 1. A binary sensor called ***binary_sensor.oref_alert*** to store PIKUD HA-OREF data. The sensor can be used in automations or to create sub-sensors/binary sensors from it.
@@ -39,7 +49,7 @@ This installation method **relies** on Supervised Add-ons, which are exclusively
 *You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/*
 ```yaml
 ---
-#secrets: /config/secrets.yaml
+secrets: /homeassistant/secrets.yaml
 appdaemon:
   latitude: 31.9837528
   longitude: 34.7359077
