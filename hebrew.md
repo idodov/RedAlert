@@ -16,6 +16,7 @@ secrets: /config/secrets.yaml
 secrets: /homeassistant/secrets.yaml
 ```
 בצילום מסך זה מוצג תוסף VSCODE. לחיצה על מקשי ctrl+o תפתח חלון בו יש לבחור את תיקיית **addon_configs**
+![ac](https://github.com/idodov/RedAlert/assets/19820046/f249ae47-b5b7-4339-8b61-42321f754922)
 _____
 
 **הסקריפט מייצר שתי ישויות חדשות ב-Home Assistant:**
