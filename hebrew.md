@@ -38,7 +38,7 @@ _____
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 
 5. **כעת יש להריץ את ההרחבה**
-6. נדרש לפתוח FILE EDITOR ולפתוח את הקובץ `config/appdaemon/appdaemon.yaml/`
+6. באמצעות עורך קבצים יש לפתוח את הקובץ `addon_configs/appdaemon/appdaemon.yaml/`
 7. יש לעדכן את הנתונים הבאים: 
 את איזור הזמן (`time_zone`) יש לעדכן ל-"Asia/Jerusalem", את הגדרת קו הרוחב (`latitude`) יש לעדכן ל-"31.9837528", את הגדרת קו האורך (`longitude`) יש לעדכן ל-"34.7359077".
 ```yaml
@@ -58,7 +58,7 @@ admin:
 api:
 hadashboard:
 ```
-8. בעזרת FILE EDITOR נדרש לנווט לתיקייה `config/appdaemon/apps/` ולהקים קובץ בשם **orefalert.py** אל תוכו להעתיק את הקוד הבא:
+8. בעזרת עורך קבצים נדרש לנווט לתיקייה `addon_configs/appdaemon/apps/` ולהקים קובץ בשם **orefalert.py** אל תוכו להעתיק את הקוד הבא:
 
 *לתשומת ליבך, בקוד מוגדר שהסנסור יבדוק מידע מול פיקוד העורף **כל 2 שניות**. ניתן לשנות את הנתון `interval = 2` למספר אחר. לדוגמא 1 = שנייה, 0.5 = חצי שנייה.* 
 ```
@@ -223,7 +223,7 @@ class OrefAlert(Hass):
         except Exception as e:
             self.log(f"Error: {e}")
 ```
-9. יש לפתוח את הקובץ **apps.yaml** אשר נמצא בנתיב `config/appdaemon/apps/` ולהוסיף את השורות הבאות **ולשמור**:
+9. יש לפתוח את הקובץ **apps.yaml** אשר נמצא בנתיב `addon_configs/appdaemon/apps/` ולהוסיף את השורות הבאות **ולשמור**:
 ```yaml
 orefalert:
   module: orefalert
