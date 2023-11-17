@@ -1,7 +1,6 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
 * ***Not Official Pikud Ha-Oref***
 * Short Hebrew version can be found here: https://github.com/idodov/RedAlert/blob/main/hebrew.md
-* Usesage Video: https://youtu.be/mlDJ1sKk0Y0
 ____
 ## Important Notice
 * This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
