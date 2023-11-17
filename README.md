@@ -3,10 +3,10 @@
 * Short Hebrew version can be found here: https://github.com/idodov/RedAlert/blob/main/hebrew.md
 * Usesage Video: https://youtu.be/mlDJ1sKk0Y0
 ____
-**Important Notice:**
-Starting from version 0.15.2, AppDaemon has changed the location of its files.
+## Important Notice
+* This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
+* Starting from version 0.15.2, AppDaemon has changed the location of its files.
 With this release, the appdaemon data folder will migrate/move out of the Home Assistant configuration folder into a dedicated folder for this add-on. You can access add-on configuration folders using SSH, Samba, VSCode, and similar add-ons by accessing the **addon_configs** folder/share.
-
 If you have this in your appdaemon.yaml file:
 ```
 secrets: /config/secrets.yaml
@@ -15,14 +15,13 @@ You will need to adjust this to:
 ```
 secrets: /homeassistant/secrets.yaml
 ```
-The latest appdaemon files are no longer situated in the config directory, causing add-ons like **File Editor** to be unable to access them. Using a **Samba Share** allows you to access and open these files with any file editor.
-
-*In the provided screenshot, the **VSCode** add-on can be accessed by pressing ctrl+o and selecting the **addon_configs** folder.*
-
+* The latest appdaemon files are no longer situated in the config directory, causing add-ons like **File Editor** to be unable to access them.
+* Using a **Samba Share** allows you to access and open these files with any file editor in your computer.
+* In the provided screenshot, the **VSCode** add-on can be accessed by pressing ctrl+o and selecting the **addon_configs** folder.
 ![ac](https://github.com/idodov/RedAlert/assets/19820046/f249ae47-b5b7-4339-8b61-42321f754922)
 ____
 **This script sets up two new entities in Home Assistant:**
-1. A binary sensor called ***binary_sensor.oref_alert*** to store PIKUD HA-OREF data. The sensor can be used in automations or to create sub-sensors/binary sensors from it.
+1. A binary sensor called ***binary_sensor.red_alert*** to store PIKUD HA-OREF data. The sensor can be used in automations or to create sub-sensors/binary sensors from it.
 2. A text input entity named ***input_text.last_alert_in_israel*** for storing the latest alert information, mainly for historical purposes.
 
 The binary sensor provides a warning for all threats that the PIKUD HA-OREF alerts for, including red alerts rocket and missile launches, unauthorized aircraft penetration, earthquakes, tsunami concerns, infiltration of terrorists, hazardous materials incidents, unconventional warfare, and any other threat. When the alert is received, the nature of the threat will appear at the beginning of the alert (e.g., 'ירי רקטות וטילים').
@@ -35,10 +34,6 @@ Until we all have an official Home Assistant add-on to handle 'Red Alert' situat
 </details>
 
 *By default, for testing purposes, the entities will contain data related to cities inside the Gaza Strip.*
-
-## Important Notice
-This installation method **relies** on Supervised Add-ons, which are exclusively accessible if you've employed either the Home Assistant Operating System or the Home Assistant Supervised installation method (You can also opt to install the AppDaemon add-on through Docker. For additional details, please consult the following link: https://appdaemon.readthedocs.io/en/latest/DOCKER_TUTORIAL.html).
-
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
@@ -71,7 +66,7 @@ hadashboard:
 6. Paste the script code into the **orefalert.py** file and save it.
 The script updates the sensors every *2 seconds*, or more frequently if you specify a shorter scan ```interval```. 
 ```
-# UPDATE 31/10/2023 - Add Text Input entity
+# UPDATE 17/11/2023 - Changed the sensor name to RED_ALERT (from oref_alert, because it may conflict with the HACS alternative add-on)
 import requests
 import re
 import time
@@ -88,8 +83,8 @@ class OrefAlert(Hass):
         self.run_every(self.poll_alerts, datetime.now(), interval, timeout=30)
 
     def check_create_binary_sensor(self):
-        if not self.entity_exists("binary_sensor.oref_alert"):
-            self.set_state("binary_sensor.oref_alert", state="off", attributes={ "id":"", "cat": "", "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "prev_cat": 0,  "prev_title": "מפוצצים את עזה", "prev_desc": "תישארו בחוץ", "prev_data" :"בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", "prev_data_count": 9,"prev_duration": 10, "prev_last_changed": datetime.now().isoformat()},)
+        if not self.entity_exists("binary_sensor.red_alert"):
+            self.set_state("binary_sensor.red_alert", state="off", attributes={ "id":"", "cat": "", "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "prev_cat": 0,  "prev_title": "מפוצצים את עזה", "prev_desc": "תישארו בחוץ", "prev_data" :"בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", "prev_data_count": 9,"prev_duration": 10, "prev_last_changed": datetime.now().isoformat()},)
         if not self.entity_exists("input_text.last_alert_in_israel"):
             self.set_state("input_text.last_alert_in_israel", state="ירי רקטות וטילים = בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", attributes={"min": 0, "max": 255, "mode": "text", "friendly_name": "Last Alert in Israel"},)
 
@@ -111,7 +106,7 @@ class OrefAlert(Hass):
             response = requests.get(url, headers=headers)
             if response.status_code == 200:
                 response_data = codecs.decode(response.content, 'utf-8-sig')
-                current_value = self.get_state("binary_sensor.oref_alert", attribute="prev_data")
+                current_value = self.get_state("binary_sensor.red_alert", attribute="prev_data")
                 if response_data.strip():  
                     try:
                         data = json.loads(response_data)
@@ -159,7 +154,7 @@ class OrefAlert(Hass):
                             
                             
                             if not current_value or current_value != alerts_data:
-                                self.set_state("binary_sensor.oref_alert", state="on", attributes={
+                                self.set_state("binary_sensor.red_alert", state="on", attributes={
                                     "id": data.get('id', None),
                                     "cat": data.get('cat', None),
                                     "title": alert_title,
@@ -189,10 +184,10 @@ class OrefAlert(Hass):
                         else:
                             # Clear the sensor if there is no data in the response
                             self.set_state(
-                                "binary_sensor.oref_alert", 
+                                "binary_sensor.red_alert", 
                                 state="off",
                                 attributes={
-                                    "id": "",
+                                    "id": 0,
                                     "cat": 0,
                                     "title": "אין התרעות",
                                     "desc": "",
@@ -211,10 +206,10 @@ class OrefAlert(Hass):
                 else:
                     # Clear the input_text and set binary_sensor state to off if there is no data in the response
                     self.set_state(
-                        "binary_sensor.oref_alert",
+                        "binary_sensor.red_alert",
                         state="off", 
                         attributes={
-                            "id": "",
+                            "id": 0,
                             "cat": 0,
                             "title": "אין התרעות",
                             "desc": "",
@@ -240,7 +235,7 @@ orefalert:
 ```
 8. **Restart** the **AppDaemon** addon.
 
-After restarting the AppDaemon addon, Home Assistant will generate two entities. The first entity called ***binary_sensor.oref_alert***, is the main sensor. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
+After restarting the AppDaemon addon, Home Assistant will generate two entities. The first entity called ***binary_sensor.red_alert***, is the main sensor. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
 
 The second entity, ***input_text.last_alert_in_israel*** is primarily designed for historical alert records on the logbook screen. Please be aware that Home Assistant has an internal character limit of 255 characters for text entities. This limitation means that during significant events, like a large-scale attack involving multiple areas or cities, some data may be truncated or lost. Therefore, it is highly discouraged to use the text input entity as a trigger for automations or to create sub-sensors from it.
 
@@ -251,10 +246,10 @@ To ensure that the sensor is functioning correctly, it is recommended to follow 
 ![Untitled-1](https://github.com/idodov/RedAlert/assets/19820046/664ece42-52bb-498b-8b3c-12edf41aaedb)
 
 In case the sensor isn't functioning properly, make sure to review the logs. You can access the logs from the main AppDaemon page on the screen. This will help you identify and resolve any issues or problems that may arise.
-## binary_sensor.oref_alert Attribues
+## binary_sensor.red_alert Attribues
 You can use any attribue from the sensor. For example, to show the title on lovelace card, use this code syntax:
 
-```{{ state_attr('binary_sensor.oref_alert', 'title') }}```
+```{{ state_attr('binary_sensor.red_alert', 'title') }}```
 | Attribute name | Means | Example |
 | ----- | ----- | ----- |
 | cat | Category number. can be from 1 to 13 | 1 |
@@ -276,22 +271,22 @@ For residents in cities with multiple alert zones: Ashkelon, Beersheba, Ashdod, 
 To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
 ### Yavne city and not Gan-Yavne city
 ```
-{{ "יבנה" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
+{{ "יבנה" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
 ```
 ### Multiple cities or city areas
 ```
-{{ "אירוס" in state_attr('binary_sensor.oref_alert', 'data').split(', ')
- or "בית חנן" in state_attr('binary_sensor.oref_alert', 'data').split(', ')
- or "גן שורק" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
+{{ "אירוס" in state_attr('binary_sensor.red_alert', 'data').split(', ')
+ or "בית חנן" in state_attr('binary_sensor.red_alert', 'data').split(', ')
+ or "גן שורק" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
 ```
 ### Cities With Multiple Zones:
 In cities with multiple zones, relying solely on the SPLIT function won't be effective if you've only defined the city name. If you need a sensor that triggers for all zones within the 11 cities divided into multiple alert zones, it's advisable to utilize the SEARCH_REGEX function instead of splitting the data.
 ```
-{{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }} 
+{{ state_attr('binary_sensor.red_alert', 'data') | regex_search("תל אביב") }} 
 ```
 If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area **exactly** as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
 ```
-{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
+{{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
 ```
 ### Metropolitan Areas
 Israel is segmented into 30 metropolitan areas, allowing you to determine the general status of nearby towns without the need to specify each one individually. To achieve this, you can utilize the "areas" attribute. Here's the list of the 30 metropolitan areas in Israel, presented in alphabetical order:
@@ -299,7 +294,7 @@ Israel is segmented into 30 metropolitan areas, allowing you to determine the ge
 אילת, בקעה, בקעת בית שאן, גוש דן, גליל עליון, גליל תחתון, דרום הגולן, דרום הנגב, הכרמל, המפרץ, העמקים, השפלה, ואדי ערה, יהודה, ים המלח, ירושלים, ירקון, לכיש,  מנשה, מערב הנגב, מערב לכיש, מרכז הגליל, מרכז הנגב, עוטף עזה, 
 ערבה, צפון הגולן, קו העימות, שומרון, שפלת יהודה ושרון
 ```
-{{ "גוש דן" in state_attr('binary_sensor.oref_alert', 'areas').split(', ') }}
+{{ "גוש דן" in state_attr('binary_sensor.red_alert', 'areas').split(', ') }}
 ```
 ## Red Alert Trigger for Particular Type of Alert:
 The **'cat'** attribute defines the alert type, with a range from 1 to 13. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
@@ -311,12 +306,12 @@ The **'cat'** attribute defines the alert type, with a range from 1 to 13. You h
 
 **Trigger for Automation**
 ```
-{{ state_attr('binary_sensor.oref_alert', 'cat') == '6' }}
+{{ state_attr('binary_sensor.red_alert', 'cat') == '6' }}
 ```
 ***Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz***
 ```yaml
-{{ state_attr('binary_sensor.oref_alert', 'cat') == '6'
-and "נחל עוז" in state_attr('binary_sensor.oref_alert', 'data').split(', ') }}
+{{ state_attr('binary_sensor.red_alert', 'cat') == '6'
+and "נחל עוז" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
 ```
 ## How to create a custom sub-sensor
 You can generate a new binary sensor to monitor your city within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Template' > 'Template binary sensor'** 
@@ -324,7 +319,7 @@ You can generate a new binary sensor to monitor your city within the user interf
 **Ensure that you employ the accurate syntax!**
 
 ![QQQ](https://github.com/idodov/RedAlert/assets/19820046/3d5e93ab-d698-4ce0-b341-6bee0e641e05)
-## Usage *binary_sensor.oref_alert* for Home Assistant
+## Usage *binary_sensor.red_alert* for Home Assistant
 ### Lovelace Card Example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
 
@@ -332,17 +327,17 @@ Displays whether there is an alert, the number of active alerts, and their respe
 ```yaml
 type: markdown
 content: >-
-  <center><h3>{% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
-  כרגע יש {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}{{
-  state_attr('binary_sensor.oref_alert', 'data_count') }} התרעות פעילות{% elif
-  state_attr('binary_sensor.oref_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
+  <center><h3>{% if state_attr('binary_sensor.red_alert', 'data_count') > 0 %}
+  כרגע יש {% if state_attr('binary_sensor.red_alert', 'data_count') > 1 %}{{
+  state_attr('binary_sensor.red_alert', 'data_count') }} התרעות פעילות{% elif
+  state_attr('binary_sensor.red_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
   endif %}{% else %} אין התרעות פעילות{% endif %}</h3>
 
-  {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}<h2>{{
-  state_attr('binary_sensor.oref_alert', 'emoji') }} {{
-  state_attr('binary_sensor.oref_alert', 'title') }}</h2>
-  <h3>{{ state_attr('binary_sensor.oref_alert', 'data') }}</h3>
-  **{{ state_attr('binary_sensor.oref_alert', 'desc') }}** {% endif %} </center>
+  {% if state_attr('binary_sensor.red_alert', 'data_count') > 0 %}<h2>{{
+  state_attr('binary_sensor.red_alert', 'emoji') }} {{
+  state_attr('binary_sensor.red_alert', 'title') }}</h2>
+  <h3>{{ state_attr('binary_sensor.red_alert', 'data') }}</h3>
+  **{{ state_attr('binary_sensor.red_alert', 'desc') }}** {% endif %} </center>
 title: Red Alert
 ```
 Using this script, you have the flexibility to include additional information, such as the **precise time the alert was triggered**.
@@ -352,22 +347,22 @@ Using this script, you have the flexibility to include additional information, s
 ```
 type: markdown
 content: >-
-  <center><h3>{% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
-  כרגע יש {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}{{
-  state_attr('binary_sensor.oref_alert', 'data_count') }} התרעות פעילות{% elif
-  state_attr('binary_sensor.oref_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
+  <center><h3>{% if state_attr('binary_sensor.red_alert', 'data_count') > 0 %}
+  כרגע יש {% if state_attr('binary_sensor.red_alert', 'data_count') > 1 %}{{
+  state_attr('binary_sensor.red_alert', 'data_count') }} התרעות פעילות{% elif
+  state_attr('binary_sensor.red_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
   endif %}{% else %} אין התרעות פעילות{% endif %}</h3>
 
-  {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}<h2>{{
-  state_attr('binary_sensor.oref_alert', 'emoji') }} {{
-  state_attr('binary_sensor.oref_alert', 'title') }}</h2> <h3>{{
-  state_attr('binary_sensor.oref_alert', 'data') }}</h3> **{{
-  state_attr('binary_sensor.oref_alert', 'desc') }}** {% endif %}
+  {% if state_attr('binary_sensor.red_alert', 'data_count') > 0 %}<h2>{{
+  state_attr('binary_sensor.red_alert', 'emoji') }} {{
+  state_attr('binary_sensor.red_alert', 'title') }}</h2> <h3>{{
+  state_attr('binary_sensor.red_alert', 'data') }}</h3> **{{
+  state_attr('binary_sensor.red_alert', 'desc') }}** {% endif %}
 
-  {% if state_attr('binary_sensor.oref_alert', 'last_changed') |
+  {% if state_attr('binary_sensor.red_alert', 'last_changed') |
   regex_match("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\d{2}:\d{2}.\d+$") %}
 
-  {% set last_changed_timestamp = state_attr('binary_sensor.oref_alert',
+  {% set last_changed_timestamp = state_attr('binary_sensor.red_alert',
   'last_changed') | as_timestamp %}
 
   {% set current_date = now().date() %}
@@ -391,26 +386,26 @@ content: >-
 ```
 type: markdown
 content: >-
-  <ha-icon icon="{{ state_attr('binary_sensor.oref_alert', 'icon')
-  }}"></ha-icon> {% if state_attr('binary_sensor.oref_alert', 'data_count') > 0
-  %}כרגע יש {% if state_attr('binary_sensor.oref_alert', 'data_count') > 1 %}{{
-  state_attr('binary_sensor.oref_alert', 'data_count') }} התרעות פעילות{% elif
-  state_attr('binary_sensor.oref_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
+  <ha-icon icon="{{ state_attr('binary_sensor.red_alert', 'icon')
+  }}"></ha-icon> {% if state_attr('binary_sensor.red_alert', 'data_count') > 0
+  %}כרגע יש {% if state_attr('binary_sensor.red_alert', 'data_count') > 1 %}{{
+  state_attr('binary_sensor.red_alert', 'data_count') }} התרעות פעילות{% elif
+  state_attr('binary_sensor.red_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
   endif %}{% else %}אין התרעות פעילות{% endif %}{% if
-  state_attr('binary_sensor.oref_alert', 'data_count') > 0 %}
+  state_attr('binary_sensor.red_alert', 'data_count') > 0 %}
 
-  <ha-alert alert-type="error" title="{{ state_attr('binary_sensor.oref_alert',
-  'title') }}">{{ state_attr('binary_sensor.oref_alert', 'data') }}</ha-alert>
+  <ha-alert alert-type="error" title="{{ state_attr('binary_sensor.red_alert',
+  'title') }}">{{ state_attr('binary_sensor.red_alert', 'data') }}</ha-alert>
 
-  <ha-alert alert-type="warning">{{ state_attr('binary_sensor.oref_alert',
+  <ha-alert alert-type="warning">{{ state_attr('binary_sensor.red_alert',
   'desc') }}</ha-alert>
 
   {% endif %}
 
-  {% if state_attr('binary_sensor.oref_alert', 'last_changed') |
+  {% if state_attr('binary_sensor.red_alert', 'last_changed') |
   regex_match("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\d{2}:\d{2}.\d+$") %}
 
-  {% set last_changed_timestamp = state_attr('binary_sensor.oref_alert',
+  {% set last_changed_timestamp = state_attr('binary_sensor.red_alert',
   'last_changed') | as_timestamp %}
 
   {% set current_date = now().date() %}{% if current_date ==
@@ -433,15 +428,15 @@ description: "Real-time Attack Notification"
 trigger:
   - platform: state
     entity_id:
-      - binary_sensor.oref_alert
+      - binary_sensor.red_alert
     from: "off"
     to: "on"
 condition: []
 action:
   - service: notify.mobile_app_#your phone#
     data:
-      message: "{{ state_attr('binary_sensor.oref_alert', 'data') }}"
-      title: "{{ state_attr('binary_sensor.oref_alert', 'title') }} ב{{ state_attr('binary_sensor.oref_alert', 'areas') }}"
+      message: "{{ state_attr('binary_sensor.red_alert', 'data') }}"
+      title: "{{ state_attr('binary_sensor.red_alert', 'title') }} ב{{ state_attr('binary_sensor.red_alert', 'areas') }}"
 mode: single
 ```
 ### Change the light color when there is an active alert in all areas of Tel Aviv
@@ -457,12 +452,12 @@ trigger:
   - platform: template
     id: TLV
     value_template: >-
-      {{ state_attr('binary_sensor.oref_alert', 'data') | regex_search("תל אביב") }}
+      {{ state_attr('binary_sensor.red_alert', 'data') | regex_search("תל אביב") }}
 condition: []
 action:
   - service: scene.create
     data:
-      scene_id: before_oref_alert
+      scene_id: before_red_alert
       snapshot_entities:
         - light.#light-1#
         - light.#light-2#
@@ -499,7 +494,7 @@ action:
   - service: scene.turn_on
     data: {}
     target:
-      entity_id: scene.before_oref_alert
+      entity_id: scene.before_red_alert
 mode: single
 ```
 ### Get notification when it's safe
@@ -516,16 +511,16 @@ mode: single
 trigger:
   - platform: template
     value_template: >-
-      {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.oref_alert',
+      {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.red_alert',
       'data').split(', ') }}
 condition: []
 action:
   - service: timer.start
     data:
       duration: >-
-        {{ state_attr('binary_sensor.oref_alert', 'duration') }}
+        {{ state_attr('binary_sensor.red_alert', 'duration') }}
     target:
-      entity_id: timer.oref_alert
+      entity_id: timer.red_alert
   - service: notify.mobile_app_#your phone#
     data:
       title: ההתרעה הוסרה
