@@ -65,12 +65,13 @@ hadashboard:
 6. Paste the script code into the **orefalert.py** file and save it.
 The script updates the sensors every *2 seconds*, or more frequently if you specify a shorter scan ```interval```. 
 ```
-# UPDATE 17/11/2023 - Changed the sensor name to RED_ALERT (from oref_alert, because it may conflict with the HACS alternative add-on)
+# UPDATE 03/01/2024 - Twicks & Bug fixes
 import requests
 import re
 import time
 import json
 import codecs
+import traceback
 from datetime import datetime
 from appdaemon.plugins.hass.hassapi import Hass
 
@@ -83,7 +84,7 @@ class OrefAlert(Hass):
 
     def check_create_binary_sensor(self):
         if not self.entity_exists("binary_sensor.red_alert"):
-            self.set_state("binary_sensor.red_alert", state="off", attributes={ "id":"", "cat": "", "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "prev_cat": 0,  "prev_title": "מפוצצים את עזה", "prev_desc": "תישארו בחוץ", "prev_data" :"בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", "prev_data_count": 9,"prev_duration": 10, "prev_last_changed": datetime.now().isoformat()},)
+            self.set_state("binary_sensor.red_alert", state="off", attributes={ "id":0, "cat": 0, "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "emoji":  "🚨", "icon_alert": "mdi:alert",  "prev_last_changed": datetime.now().isoformat(), "prev_cat": 0,  "prev_title": "מפוצצים את עזה", "prev_desc": "תישארו בחוץ", "prev_data" :"בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", "prev_data_count": 9,"prev_duration": 10, "prev_areas": "רצועת עזה", "prev_last_changed": datetime.now().isoformat()},)
         if not self.entity_exists("input_text.last_alert_in_israel"):
             self.set_state("input_text.last_alert_in_israel", state="ירי רקטות וטילים = בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", attributes={"min": 0, "max": 255, "mode": "text", "friendly_name": "Last Alert in Israel"},)
 
@@ -101,8 +102,9 @@ class OrefAlert(Hass):
         icon_alert = "mdi:alert"
         emojis = {1: "🚀",2: "⚠️",3: "🌍",4: "☢️",5: "🌊",6: "🛩️",7: "💀",8: "❗",9: "❗",10: "❗",11: "❗",12: "❗",13: "👣👹",}
         icon_emoji = "🚨"
+        areas_alert = "ישראל"
         try:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=30)
             if response.status_code == 200:
                 response_data = codecs.decode(response.content, 'utf-8-sig')
                 current_value = self.get_state("binary_sensor.red_alert", attribute="prev_data")
@@ -111,7 +113,7 @@ class OrefAlert(Hass):
                         data = json.loads(response_data)
                         if 'data' in data and data['data']:
                             alert_title = data.get('title', '')
-                            alerts_data = ', '.join(data['data'])
+                            alerts_data = ', '.join(sorted(data.get('data', [])))
                             icon_alert = icons.get(int(data.get('cat', 1)), "mdi:alert")
                             icon_emoji = emojis.get(int(data.get('cat', 1)), "❗")
                             if isinstance(alerts_data, str):
@@ -123,8 +125,7 @@ class OrefAlert(Hass):
                                 duration = int(duration_match[0]) * 60
                             else:
                                 duration = 0
-                                
-                            # Standardize lamas cities once globally
+
                             for area, cities in lamas['areas'].items():
                                 if isinstance(cities, str):
                                     cities = cities.split(',')
@@ -135,27 +136,22 @@ class OrefAlert(Hass):
                             standardized_names = [re.sub(r'[\-\,\(\)\s]+', '', name).strip() for name in city_names]
 
                             areas = []
-
                             for area, cities in lamas['areas'].items():
                                 if any(city in cities for city in standardized_names):
                                     areas.append(area)
-
                             areas.sort()
-
                             if len(areas) > 1:
                                 all_but_last = ", ".join(areas[:-1])
                                 areas_text = f"{all_but_last} ו{areas[-1]}"
                             else:
-                                areas_text = areas[0]
+                                areas_text = ", ".join(areas)
 
-                            areas_text = areas_text.replace('השפלה', 'שפלה')
                             areas_alert = areas_text
-                            
                             
                             if not current_value or current_value != alerts_data:
                                 self.set_state("binary_sensor.red_alert", state="on", attributes={
-                                    "id": data.get('id', None),
-                                    "cat": data.get('cat', None),
+                                    "id": int(data.get('id', 0)),
+                                    "cat": int(data.get('cat', 0)),
                                     "title": alert_title,
                                     "desc": data.get('desc', None),
                                     "areas": areas_alert,
@@ -163,7 +159,7 @@ class OrefAlert(Hass):
                                     "data_count": data_count,
                                     "duration": duration,
                                     "last_changed": datetime.now().isoformat(),
-                                    "prev_cat": data.get('cat', None),
+                                    "prev_cat": int(data.get('cat', 0)),
                                     "prev_title": alert_title,
                                     "prev_desc": data.get('desc', None),
                                     "prev_areas": areas_alert,
@@ -178,27 +174,9 @@ class OrefAlert(Hass):
                             )
                                 text_status = f"{alert_title} ב{areas_alert} - {alerts_data}"
                                 if len(text_status) > 255:
-                                    text_status = text_status[:252] + "..."
+                                    text_status = f"{text_status[:252]}..."
                                 self.set_state("input_text.last_alert_in_israel", state=f"{text_status}", attributes={"icon": f"{icon_alert}"},)
-                        else:
-                            # Clear the sensor if there is no data in the response
-                            self.set_state(
-                                "binary_sensor.red_alert", 
-                                state="off",
-                                attributes={
-                                    "id": 0,
-                                    "cat": 0,
-                                    "title": "אין התרעות",
-                                    "desc": "",
-                                    "data": "",
-                                    "areas": "",
-                                    "data_count": 0,
-                                    "duration": 0,
-                                    "emoji":  icon_emoji,
-                                    "icon": icon_alert,
-                                    "friendly_name": "Oref Alert",
-                                },
-                            )
+                        
                     except json.JSONDecodeError:
                         self.log("Error: Invalid JSON format in the response.")
                         icon_alert = "mdi:alert"
@@ -218,13 +196,16 @@ class OrefAlert(Hass):
                             "duration": 0,
                             "icon": icon_alert,
                             "emoji":  icon_emoji,
-                            "friendly_name": "Oref Alert",
+                            "friendly_name": "Red Alert",
                         },
                     )
             else:
                 self.log(f"Failed to retrieve data. Status code: {response.status_code}")
+        except requests.exceptions.Timeout:
+            self.log("The request timed out")
+            return
         except Exception as e:
-            self.log(f"Error: {e}")
+            self.log(f"Error: {e}\n{traceback.format_exc()}")
 ```
 7. With a file editor, open the **\addon_configs\appdaemon\apps\apps.yaml** file and add/enter the following lines
 ```yaml
