@@ -19,7 +19,7 @@ class Red_Alerts_Israel(Hass):
 
     def check_create_binary_sensor(self):
         self.pkr_def_city = self.args.get("city_names", "תל אביב - מרכז העיר")
-        self.main_sensor_arg = self.args.get("sensor_name", "oref_alert")
+        self.main_sensor_arg = self.args.get("sensor_name", "red_alert")
         self.interval = self.args.get("interval", 2)
         self.main_sensor = f"binary_sensor.{self.main_sensor_arg}"
         self.city_sensor = f"binary_sensor.{self.main_sensor_arg}_city"
