@@ -18,14 +18,13 @@ The binary sensor provides a warning for all threats that the PIKUD HA-OREF aler
 
 4. **Start** the add-on
 5. In file editor open **\addon_configs\appdaemon\appdaemon.yaml** and make the changes under *appdeamon* section as described:
-> [!IMPORTANT]
-> In file editor open **\addon_configs\appdaemon\appdaemon.yaml** and make this changes under *appdeamon* section for. You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/
+> You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/
 > *  `latitude: 31.9837528`
 > *  `longitude: 34.7359077`
 > *  `time_zone: Asia/Jerusalem`.
 > *   If you install this script via HACS - **Specify the apps directory in `app_dir: /homeassistant/appdaemon/apps/`.**
 >     * Also, remember to **transfer** all files from `/addon_configs/a0d7b954_appdaemon/apps/` to `/homeassistant/appdaemon/apps/`.
->     ```yaml
+>   ```yaml
 >     #/addon_configs/a0d7b954_appdaemon/appdaemon.yaml
 >     ---
 >     secrets: /homeassistant/secrets.yaml
@@ -54,38 +53,41 @@ The binary sensor provides a warning for all threats that the PIKUD HA-OREF aler
 2. Navigate to the `Custom Repositories` page and add the following repository as `Appdaemon`: `https://github.com/idodov/RedAlert/`
 3. Return to the `HACS Automation` screen, search for `Red Alerts Israel`, click on `Download` and proceed to the final step
 ### Final Step
+In the `/appdaemon/apps/apps.yaml` file, add the following code. **Make sure to replace the city_names values as described below and save the file:**
+```yaml
+#/appdaemon/apps/apps.yaml
+red_alerts_israel:
+  module: red_alerts_israel
+  class: Red_Alerts_Israel
+  interval: 2
+  sensor_name: "red_alert" # The name of the sensors - you can define it to your own name, like "oref_alert"
+  city_names: "שתולה, קרית שמונה, כיסופים, שלומי, ראש הנקרה, תל אביב - מרכז העיר, שניר"
+```
+| Parameter | Description | Example |
+|---|---|---|
+| `interval` | The interval in seconds at which the script runs | `2` |
+| `sensor_name` | The name of the **primary** binary sensor in Home Assistant (`binary_sensor.#sensor_name#`) | `red_alert` |
+| `city_names` | The names of the cities that activate the **second** binary sensor that will be named `binary_sensor.#sensor_name#_city` | `תל אביב - מרכז העיר, שניר, מטולה` |
 > [!TIP]
 > Since Home Assistant won't preserve the history of the sensors after a restart, it's recommended to create an input text helper. Here are the steps to do this:
 > 1. Open `configuration.yaml`.
 > 2. Add this lines and restart Home Assistant:
 > ```yaml
+>   #/homeassistant/configuration.yaml
 >   input_text:
 >     red_alert:
 >       name: Last Alert in Israel
 >       min: 0
 >       max: 255
 > ```
-In the `/appdaemon/apps/apps.yaml` file, add the following code. Make sure to replace the values as described below and save the file:
-```yaml
-red_alerts_israel:
-  module: red_alerts_israel
-  class: Red_Alerts_Israel
-  interval: 2
-  sensor_name: "red_alert"
-  city_names: "שתולה, קרית שמונה, כיסופים, שלומי, ראש הנקרה ,תל אביב - מרכז העיר, שניר"
-```
-| Parameter | Description | Example |
-|---|---|---|
-| `interval` | The interval in seconds at which the script runs | `2` |
-| `sensor_name` | The name of the primary binary sensor in Home Assistant (`binary_sensor.#sensor_name#`) | `red_alert` |
-| `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city` | `תל אביב - מרכז העיר, שניר, מטולה` |
 _______
 ## YOU ARE ALL SET!
 After restarting the AppDaemon addon, Home Assistant will generate 3 entities. 
 * The first entity called `binary_sensor.red_alert`, is the main sensor. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
 * The second entity is a binary sensor named `binary_sensor.red_alert_city`, which also stores PIKUD-HA-OREF data. However, it only activates if the city you define is included in the alarm cities.
 * The third entity `input_text.red_alert` is primarily designed for historical alert records on the logbook screen. Please be aware that Home Assistant has an internal character limit of 255 characters for text entities. This limitation means that during significant events, like a large-scale attack involving multiple areas or cities, some data may be truncated or lost. Therefore, it is highly discouraged to use the text input entity as a trigger for automations or to create sub-sensors from it.
-
+> [!TIP]
+> Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run
 ## binary_sensor.red_alert Attribues
 You can use any attribue from the sensor. For example, to show the title on lovelace card, use this code syntax:
 
@@ -284,8 +286,6 @@ action:
 mode: single
 ```
 ### Get notification 
-## When script not running
-Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run
 ## When it's safe
 The "desc" attribute provides information on the duration in minutes for staying inside the safe room. This automation will generate a timer based on the data from this attribute.
 Before implementing this automation, it's essential to create a TIMER helper.
