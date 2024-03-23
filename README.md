@@ -213,7 +213,7 @@ description: "Real-time Attack Notification"
 trigger:
   - platform: state
     entity_id:
-      - binary_sensor.red_alert_city
+      - binary_sensor.red_alert
     from: "off"
     to: "on"
 condition: []
@@ -224,20 +224,21 @@ action:
       title: "{{ state_attr('binary_sensor.red_alert', 'title') }} {{ state_attr('binary_sensor.red_alert', 'areas') }}"
 mode: single
 ```
-### Change the light color when there is an active alert in all areas of Tel Aviv
+### Change the light color when there is an active alert in your city
 As another illustration, you can configure your RGB lights to change colors repeatedly while the alert is active.
 
 ![20231013_221552](https://github.com/idodov/RedAlert/assets/19820046/6e60d5ca-12a9-4fd2-9b10-bcb19bf38a6d)
 
 *(Change ```light.#light-1#``` to your entity name)*
 ```yaml
-alias: Alert in TLV
-description: "When an alert occurs in Tel Aviv, the lights will cyclically change to red and blue for a duration of 30 seconds, after which they will revert to their previous states"
+alias: Alert in city
+description: "When an alert occurs in your define city, the lights will cyclically change to red and blue for a duration of 30 seconds, after which they will revert to their previous states"
 trigger:
-  - platform: template
-    id: TLV
-    value_template: >-
-      {{ state_attr('binary_sensor.red_alert', 'data') | regex_search("תל אביב") }}
+- platform: state
+  entity_id:
+    - binary_sensor.red_alert_city
+  from: "off"
+  to: "on"
 condition: []
 action:
   - service: scene.create
@@ -306,7 +307,7 @@ action:
   - service: timer.start
     data:
       duration: >-
-        {{ state_attr('binary_sensor.red_alert', 'duration') }}
+        {{ state_attr('binary_sensor.red_alert_city', 'duration') }}
     target:
       entity_id: timer.red_alert
   - service: notify.mobile_app_#your phone#
