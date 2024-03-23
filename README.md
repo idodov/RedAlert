@@ -4,7 +4,7 @@ ____
 ### This script introduces three new entities in Home Assistant:
 > **You have the flexibility to define the sensor name as per your preference. The default sensor name value is `red_alert`.**
 1. A binary sensor named `binary_sensor.red_alert`, which stores PIKUD HA-OREF data. This sensor activates whenever there is an alarm and deactivates otherwise. It can be utilized in automations or to create sub-sensors/binary sensors.
-2. A binary sensor named `*binary_sensor.red_alert_city`, which also stores PIKUD-HA-OREF data. However, it only activates if the city you define is included in the alarm cities.
+2. A binary sensor named `binary_sensor.red_alert_city`, which also stores PIKUD-HA-OREF data. However, it only activates if the city you define is included in the alarm cities.
 3. A text input entity named `input_text.red_alert`, which stores the latest alert information, primarily for historical reference.
 
 The binary sensor provides a warning for all threats that the PIKUD HA-OREF alerts for, including red alerts rocket and missile launches, unauthorized aircraft penetration, earthquakes, tsunami concerns, infiltration of terrorists, hazardous materials incidents, unconventional warfare, and any other threat. When the alert is received, the nature of the threat will appear at the beginning of the alert (e.g., 'ירי רקטות וטילים').
