@@ -25,13 +25,16 @@ class Red_Alerts_Israel(Hass):
         self.city_sensor = f"binary_sensor.{self.main_sensor_arg}_city"
         self.main_text = f"input_text.{self.main_sensor_arg}"
         if not self.entity_exists(self.main_sensor):
-            self.set_state(self.main_sensor, state="off", attributes={ "id":0, "cat": 0, "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "emoji":  "🚨", "icon_alert": "mdi:alert",  "prev_last_changed": datetime.now().isoformat(), "prev_cat": 0,  "prev_title": "מפוצצים את עזה", "prev_desc": "תישארו בחוץ", "prev_data" :"בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", "prev_data_count": 9,"prev_duration": 10, "prev_areas": "רצועת עזה", "prev_last_changed": datetime.now().isoformat(), "friendly_name": self.main_sensor_arg},)
+            self.set_state(self.main_sensor, state="off", attributes={ "count": 0, "id":0, "cat": 0, "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "emoji":  "🚨", "icon_alert": "mdi:alert",  "prev_last_changed": datetime.now().isoformat(), "prev_cat": 0,  "prev_title": "מפוצצים את עזה", "prev_desc": "תישארו בחוץ", "prev_data" :"בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", "prev_data_count": 9,"prev_duration": 10, "prev_areas": "רצועת עזה", "prev_last_changed": datetime.now().isoformat(), "friendly_name": self.main_sensor_arg},)
         if not self.entity_exists(self.city_sensor):
             self.set_state(self.city_sensor, state="off", attributes={ "id":0, "cat": 0, "title": "", "desc": "", "data": "", "data_count": 0, "duration": 0, "last_changed": "", "emoji":  "🚨", "icon_alert": "mdi:alert",  "prev_last_changed": datetime.now().isoformat(), "prev_cat": 0,  "prev_title": "אין התרעות", "prev_desc": "מצב רגיל", "prev_data" :"", "prev_data_count": 0,"prev_duration": 0, "prev_areas": "", "prev_last_changed": datetime.now().isoformat(), "friendly_name": self.pkr_def_city},)
         if not self.entity_exists(self.main_text):
             self.set_state(self.main_text, state="אין התרעות", attributes={"min": 0, "max": 255, "mode": "text", "friendly_name": "Last Alert in Israel"},)
 
     def poll_alerts(self, kwargs):
+        old_value = self.get_state(self.main_sensor, attribute="count")
+        current_value = 0 if old_value is None else int(old_value) + 1
+        self.set_state(self.main_sensor, attributes={"count": current_value,})
         try:
             response = requests.get(url, headers=headers, timeout=30)
             if response.status_code == 200:
@@ -78,7 +81,7 @@ class Red_Alerts_Israel(Hass):
                                 for word in replacements:
                                     first_city = first_city.replace(word, word[1:])
                                     all_but_last = ", ".join([first_city] + areas[1:-1])
-                                    areas_text = f"{all_but_last} ו{areas[-1]}"
+                                    areas_text = f"ב{all_but_last} ו{areas[-1]}"
                             else:
                                 areas_text = ", ".join(areas)
                             areas_alert = areas_text
@@ -86,7 +89,7 @@ class Red_Alerts_Israel(Hass):
                             if not current_value or current_value != alerts_data:
                                 sensor_attributes={"id": int(data.get('id', 0)),"cat": int(data.get('cat', 0)),"title": alert_title,"desc": data.get('desc', None),"areas": areas_alert,"data": alerts_data,"data_count": data_count,"duration": duration,"last_changed": datetime.now().isoformat(),"prev_cat": int(data.get('cat', 0)),"prev_title": alert_title,"prev_desc": data.get('desc', None),"prev_areas": areas_alert,"prev_data": alerts_data,"prev_data_count": data_count,"prev_duration": duration,"prev_last_changed": datetime.now().isoformat(),"icon": icon_alert,"emoji":  icon_emoji,"friendly_name": self.main_sensor_arg,}
                                 self.set_state(self.main_sensor, state="on", attributes=sensor_attributes)
-                                text_status = f"{alert_title} ב{areas_alert} - {alerts_data}"
+                                text_status = f"{alert_title} {areas_alert} - {alerts_data}"
                                 if len(text_status) > 255:
                                     text_status = f"{text_status[:252]}..."
                                 self.set_state(self.main_text, state=f"{text_status}", attributes={"icon": f"{icon_alert}"},)
