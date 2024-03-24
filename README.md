@@ -2,13 +2,13 @@
 ***Not Official Pikud Ha-Oref***
 ____
 ### This script introduces three new entities in Home Assistant:
-> **You have the flexibility to define the sensor name as per your preference. The default sensor name value is `red_alert`.**
-1. A binary sensor named `binary_sensor.red_alert`, which stores PIKUD HA-OREF data. This sensor activates whenever there is an alarm and deactivates otherwise. It can be utilized in automations or to create sub-sensors/binary sensors.
-2. A binary sensor named `binary_sensor.red_alert_city`, which also stores PIKUD-HA-OREF data. However, it only activates if the city you define is included in the alarm cities.
-3. A text input entity named `input_text.red_alert`, which stores the latest alert information, primarily for historical reference.
+* `binary_sensor.red_alert`, which stores PIKUD HA-OREF data. This sensor activates whenever there is an alarm and deactivates otherwise. It can be utilized in automations or to create sub-sensors/binary sensors.
+* `binary_sensor.red_alert_city`, which also stores PIKUD-HA-OREF data. However, it only activates if the city you define is included in the alarm cities.
+* `input_text.red_alert`, which stores the latest alert information, primarily for historical reference.
 
 The binary sensor provides a warning for all threats that the PIKUD HA-OREF alerts for, including red alerts rocket and missile launches, unauthorized aircraft penetration, earthquakes, tsunami concerns, infiltration of terrorists, hazardous materials incidents, unconventional warfare, and any other threat. When the alert is received, the nature of the threat will appear at the beginning of the alert (e.g., 'ירי רקטות וטילים').
-
+> [!NOTE]
+> **You have the flexibility to define the sensor name as per your preference. The default sensor name value is `red_alert`.**
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
@@ -94,20 +94,20 @@ You can use any attribue from the sensor. For example, to show the title on love
 ```{{ state_attr('binary_sensor.red_alert', 'title') }}```
 | Attribute name | Means | Example |
 | ----- | ----- | ----- |
-| count | Counts the number of times the script has run since the last restart of Home Assistant. By monitoring this data, you can determine if and when the script is not running. | `12345` |
-| cat | Category number. can be from 1 to 13 | `1` |
-| title | Attack type in text | `ירי רקטות וטילים` |
-| data | List of cities | `תל אביב - מרכז העיר` |
-| areas | List of areas | `גוש דן` |
-| desc | Explain what to do |  `היכנסו למרחב המוגן ושהו בו 10 דקות` |
-| duration | How many seconds to be in the safe room | `600` |
-| id | Id of the alert | 133413399870000000 |
-| data_count | Number of cities that are attacked | `1` |
-| emoji | Icon for type of attack | `🚀` |
-| prev_* | Last data from each attribue | *stores the most recent information when the sensor was active. These attributes will become available after the first alert.* |
+| `count` | Counts the number of times the script has run since the last restart of Home Assistant. By monitoring this data, you can determine if and when the script is not running. | `12345` |
+| `cat` | Category number. can be from 1 to 13 | `1` |
+| `title` | Attack type in text | `ירי רקטות וטילים` |
+| `data` | List of cities | `תל אביב - מרכז העיר` |
+| `areas` | List of areas | `גוש דן` |
+| `desc` | Explain what to do |  `היכנסו למרחב המוגן ושהו בו 10 דקות` |
+| `duration` | How many seconds to be in the safe room | `600` |
+| `id` | Id of the alert | 133413399870000000 |
+| `data_count` | Number of cities that are attacked | `1` |
+| `emoji` | Icon for type of attack | `🚀` |
+| `prev_*` | Last data from each attribue | Stores the most recent information when the sensor was active |
 
-## Usage *binary_sensor.red_alert* for Home Assistant
-### Lovelace Card Example
+# Usage *binary_sensor.red_alert* for Home Assistant
+## Lovelace Card Example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
 
 ![TILIM](https://github.com/idodov/RedAlert/assets/19820046/f8ad780b-7e64-4c54-ab74-79e7ff56b780)
@@ -285,8 +285,7 @@ action:
       entity_id: scene.before_red_alert
 mode: single
 ```
-### Get notification 
-## When it's safe
+### Get notification When it's safe
 The "desc" attribute provides information on the duration in minutes for staying inside the safe room. This automation will generate a timer based on the data from this attribute.
 Before implementing this automation, it's essential to create a TIMER helper.
 1. Create a new **TIMER helper**. You can generate a new timer entity within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Timer'**
@@ -314,4 +313,52 @@ action:
     data:
       title: ההתרעה הוסרה
       message: אפשר לחזור לשגרה
+```
+## Creating Sub Sensors
+While you need to specify the cities in which the secondary binary sensor will be activated, you also have the flexibility to define additional sub-sensors based on the main sensor. Here are a few examples of how you can do this.
+> [!NOTE]
+> To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
+> If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area **exactly** as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
+> ```
+> {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
+> ```
+### Yavne city and not Gan-Yavne city
+```
+{{ "יבנה" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
+```
+### Multiple cities or city areas
+```
+{{ "אירוס" in state_attr('binary_sensor.red_alert', 'data').split(', ')
+ or "בית חנן" in state_attr('binary_sensor.red_alert', 'data').split(', ')
+ or "גן שורק" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
+```
+### Cities With Multiple Zones:
+In cities with multiple zones, relying solely on the SPLIT function won't be effective if you've only defined the city name. If you need a sensor that triggers for all zones within the 11 cities divided into multiple alert zones, it's advisable to utilize the SEARCH_REGEX function instead of splitting the data.
+```
+{{ state_attr('binary_sensor.red_alert', 'data') | regex_search("תל אביב") }} 
+```
+### Metropolitan Areas
+Israel is segmented into 30 metropolitan areas, allowing you to determine the general status of nearby towns without the need to specify each one individually. To achieve this, you can utilize the "areas" attribute. Here's the list of the 30 metropolitan areas in Israel, presented in alphabetical order:
+
+אילת, בקעה, בקעת בית שאן, גוש דן, גליל עליון, גליל תחתון, דרום הגולן, דרום הנגב, הכרמל, המפרץ, העמקים, השפלה, ואדי ערה, יהודה, ים המלח, ירושלים, ירקון, לכיש,  מנשה, מערב הנגב, מערב לכיש, מרכז הגליל, מרכז הנגב, עוטף עזה, 
+ערבה, צפון הגולן, קו העימות, שומרון, שפלת יהודה ושרון
+```
+{{ "גוש דן" in state_attr('binary_sensor.red_alert', 'areas').split(', ') }}
+```
+## Red Alert Trigger for Particular Type of Alert:
+The **'cat'** attribute defines the alert type, with a range from 1 to 13. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
+| Cat (number) | Type of Alert |
+| ---- | --- |
+| 1 | Missle Attack |
+| 6 | Unauthorized Aircraft Penetration |
+| 13 | Infiltration of Terrorists |
+
+**Trigger for Automation**
+```
+{{ state_attr('binary_sensor.red_alert', 'cat') == '6' }}
+```
+***Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz***
+```yaml
+{{ state_attr('binary_sensor.red_alert', 'cat') == '6'
+and "נחל עוז" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
 ```
