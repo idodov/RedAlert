@@ -18,6 +18,7 @@ The binary sensor provides a warning for all threats that the PIKUD HA-OREF aler
 
 4. **Start** the add-on
 5. In file editor open **\addon_configs\appdaemon\appdaemon.yaml** and make the changes under *appdeamon* section as described:
+> [!IMPORTANT]
 > You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/
 > *  `latitude: 31.9837528`
 > *  `longitude: 34.7359077`
