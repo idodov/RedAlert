@@ -47,41 +47,36 @@ class Red_Alerts_Israel(Hass):
                             alert_title = data.get('title', '')
                             alerts_data = ', '.join(sorted(data.get('data', [])))
                             icon_alert, icon_emoji = icons_and_emojis[int(data.get('cat', 1))]
+                            if isinstance(alerts_data, str):
+                                data_count = len(alerts_data.split(','))
+                            else:
+                                data_count = 0
+                            duration_match = re.findall(r'\d+', data.get('desc', '0'))
+                            if duration_match:
+                                duration = int(duration_match[0]) * 60
+                            else:
+                                duration = 0
 
-                        if isinstance(alerts_data, str):
-                            data_count = len(alerts_data.split(','))
-                        else:
-                            data_count = 0
+                            for area, cities in lamas['areas'].items():
+                                if isinstance(cities, str):
+                                    cities = cities.split(',')
+                                standardized_cities = [re.sub(r'[\-\,\(\)\s]+', '', city).strip() for city in cities]
+                                lamas['areas'][area] = standardized_cities
 
-                        duration_match = re.findall(r'\d+', data.get('desc', '0'))
-                        if duration_match:
-                            duration = int(duration_match[0]) * 60
-                        else:
-                            duration = 0
+                            city_names = alerts_data.split(',')
+                            standardized_names = [re.sub(r'[\-\,\(\)\s]+', '', name).strip() for name in city_names]
 
-                        for area, cities in lamas['areas'].items():
-                            standardized_cities = [re.sub(r'[\-\,\(\)\s]+', '', city).strip() for city in cities.keys()]
-                            lamas['areas'][area] = standardized_cities
-
-                        city_names = alerts_data.split(',')
-                        city_names_self = self.pkr_def_city.split(',')
-                        standardized_names = [re.sub(r'[\-\,\(\)\s]+', '', name).strip() for name in city_names]
-
-                        areas = []
-                        for area, cities in lamas['areas'].items():
-                            if any(city in cities for city in standardized_names):
-                                areas.append(area)
-                        areas.sort()
-
-                        if len(areas) > 1:
-                            first_city = areas[0]
-                            replacements = ['השפלה', 'העמקים', 'הכרמל', 'המפרץ']
-                            for word in replacements:
-                                first_city = first_city.replace(word, word[1:])
-                                all_but_last = ", ".join([first_city] + areas[1:-1])
-                                areas_text = f"ב{all_but_last} ו{areas[-1]}"
+                            areas = []
+                            for area, cities in lamas['areas'].items():
+                                if any(city in cities for city in standardized_names):
+                                    areas.append(area)
+                            areas.sort()
+                            if len(areas) > 1:
+                                all_but_last = ", ".join(areas[:-1])
+                                areas_text = f"{all_but_last} ו{areas[-1]}"
                             else:
                                 areas_text = ", ".join(areas)
+
                             areas_alert = areas_text
                             
                             if not current_value or current_value != alerts_data:
@@ -92,6 +87,7 @@ class Red_Alerts_Israel(Hass):
                                     text_status = f"{text_status[:252]}..."
                                 self.set_state(self.main_text, state=f"{text_status}", attributes={"icon": f"{icon_alert}"},)
                         
+                                city_names_self = self.pkr_def_city.split(',')
                                 if any(city in city_names for city in city_names_self):
                                     self.set_state(self.city_sensor, state="on", attributes=sensor_attributes)
                                 else:
