@@ -116,6 +116,42 @@ You can use any attribue from the sensor. For example, to show the title on love
 | `alert_alt` | Breaking line full text | ` ירי רקטות וטילים/n* קו העימות: בצת, שלומי` |
 | `alert_txt` | One line text | `קו העימות: בצת, שלומי` |
 | `alert_wa` | Optimize text message to send via whatsapp | ![whatsapp](https://github.com/idodov/RedAlert/assets/19820046/817c72f4-70b1-4499-b831-e5daf55b6220) |
+**Example:**
+```yaml
+count: 237
+id: 1234567890000000
+cat: 1
+title: ירי רקטות וטילים
+desc: היכנסו למרחב המוגן ושהו בו 10 דקות
+data: אבירים, פסוטה
+areas: קו העימות
+data_count: 2
+duration: 600
+last_changed: "2024-03-29T20:18:36.354614"
+emoji: ⚠️
+icon_alert: mdi:alert
+prev_last_changed: "2024-03-29T20:18:36.354636"
+prev_cat: 1
+prev_title: ירי רקטות וטילים
+prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
+prev_data: אבירים, פסוטה
+prev_data_count: 2
+prev_duration: 600
+prev_areas: קו העימות
+alert: ירי רקטות וטילים ב־קו העימות - אבירים, פסוטה
+alert_alt: |-
+  ירי רקטות וטילים
+   * קו העימות: אבירים, פסוטה
+alert_txt: "קו העימות: אבירים, פסוטה"
+alert_wa: |-
+  🚀 *ירי רקטות וטילים*
+  > קו העימות
+  אבירים, פסוטה
+
+  _היכנסו למרחב המוגן ושהו בו 10 דקות_
+friendly_name: red_alert
+icon: mdi:alert
+```
 
 # Usage *binary_sensor.red_alert* for Home Assistant
 ## Lovelace Card Example
