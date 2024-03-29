@@ -116,6 +116,7 @@ You can use any attribue from the sensor. For example, to show the title on love
 | `alert_alt` | Breaking line full text | ` ירי רקטות וטילים/n* קו העימות: בצת, שלומי` |
 | `alert_txt` | One line text | `קו העימות: בצת, שלומי` |
 | `alert_wa` | Optimize text message to send via whatsapp | ![whatsapp](https://github.com/idodov/RedAlert/assets/19820046/817c72f4-70b1-4499-b831-e5daf55b6220) |
+
 **Example:**
 ```yaml
 count: 237
