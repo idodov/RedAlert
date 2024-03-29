@@ -37,15 +37,20 @@ In the `/appdaemon/apps/apps.yaml` file, add the following code. Make sure to re
 | Parameter | Description | Example |
 |---|---|---|
 | `interval` | The interval in seconds at which the script runs | `2` |
+| `timer` | The duration, in seconds, for which the sensor remains on after an alert | `120` |
 | `sensor_name` | The name of the primary binary sensor in Home Assistant (`binary_sensor.#sensor_name#`) | `red_alert` |
-| `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city` | `ראשון לציון - מערב, תל אביב - דרום` |
+| `test` | A boolean value indicating whether to check the sensor by sending text data | `False` |
+| `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city`. You can add as many cities you want | `ראשון לציון - מערב, תל אביב - דרום` |
 
 ```yaml
 # /appdaemon/apps/apps.yaml
+---
 red_alerts_israel:
   module: red_alerts_israel
   class: Red_Alerts_Israel
   interval: 2
-  sensor_name: "red_alert"
+  timer: 120
+  sensor_name: "oref_alert"
+  test: False
   city_names: "שתולה, קרית שמונה, כיסופים, שלומי, ראש הנקרה ,תל אביב - מרכז העיר, שניר" 
 ```
