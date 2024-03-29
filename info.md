@@ -62,3 +62,22 @@ red_alerts_israel:
   test: False
   city_names: "שתולה, קרית שמונה, כיסופים, שלומי, ראש הנקרה ,תל אביב - מרכז העיר, שניר" 
 ```
+
+## Sensor Attributes
+| Attribute name | Means | Example |
+| ----- | ----- | ----- |
+| `count` | Counts the number of times the script has run since the last restart of Home Assistant. By monitoring this data, you can determine if and when the script is not running. | `12345` |
+| `cat` | Category number. can be from 1 to 13 | `1` |
+| `title` | Attack type in text | `ירי רקטות וטילים` |
+| `data` | List of cities | `תל אביב - מרכז העיר` |
+| `areas` | List of areas | `גוש דן` |
+| `desc` | Explain what to do |  `היכנסו למרחב המוגן ושהו בו 10 דקות` |
+| `duration` | How many seconds to be in the safe room | `600` |
+| `id` | Id of the alert | `133413399870000000` |
+| `data_count` | Number of cities that are attacked | `1` |
+| `emoji` | Icon for type of attack | `🚀` |
+| `prev_*` | Last data from each attribue | Stores the most recent information when the sensor was active |
+| `alert` | One line full text  | `ירי רקטות וטילים ב־קו העימות - בצת, שלומי` |
+| `alert_alt` | Breaking line full text | ` ירי רקטות וטילים/n* קו העימות: בצת, שלומי` |
+| `alert_txt` | One line text | `קו העימות: בצת, שלומי` |
+| `alert_wa` | Optimize text message to send via whatsapp | ![whatsapp](https://github.com/idodov/RedAlert/assets/19820046/817c72f4-70b1-4499-b831-e5daf55b6220) |
