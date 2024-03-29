@@ -55,20 +55,27 @@ The binary sensor provides a warning for all threats that the PIKUD HA-OREF aler
 3. Return to the `HACS Automation` screen, search for `Red Alerts Israel`, click on `Download` and proceed to the final step
 ### Final Step
 In the `/appdaemon/apps/apps.yaml` file, add the following code. **Make sure to replace the city_names values as described below and save the file:**
+
 ```yaml
 #/appdaemon/apps/apps.yaml
 red_alerts_israel:
   module: red_alerts_israel
   class: Red_Alerts_Israel
   interval: 2
+  timer: 120
   sensor_name: "red_alert" # The name of the sensors - you can define it to your own name, like "oref_alert"
+  test: False
   city_names: "שתולה, קרית שמונה, כיסופים, שלומי, ראש הנקרה, תל אביב - מרכז העיר, שניר"
 ```
+
 | Parameter | Description | Example |
 |---|---|---|
 | `interval` | The interval in seconds at which the script runs | `2` |
-| `sensor_name` | The name of the **primary** binary sensor in Home Assistant (`binary_sensor.#sensor_name#`) | `red_alert` |
-| `city_names` | The names of the cities that activate the **second** binary sensor that will be named `binary_sensor.#sensor_name#_city` | `תל אביב - מרכז העיר, שניר, מטולה` |
+| `timer` | The duration, in seconds, for which the sensor remains on after an alert | `120` |
+| `sensor_name` | The name of the primary binary sensor in Home Assistant (`binary_sensor.#sensor_name#`) | `red_alert` |
+| `test` | A boolean value indicating whether to check the sensor by sending text data | `False` |
+| `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city`. You can add as many cities you want | `ראשון לציון - מערב, תל אביב - דרום` |
+
 > [!TIP]
 > Since Home Assistant won't preserve the history of the sensors after a restart, it's recommended to create an input text helper. Here are the steps to do this:
 > 1. Open `configuration.yaml`.
@@ -90,8 +97,7 @@ After restarting the AppDaemon addon, Home Assistant will generate 3 entities.
 > [!TIP]
 > Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run
 ## binary_sensor.red_alert Attribues
-You can use any attribue from the sensor. For example, to show the title on lovelace card, use this code syntax:
-
+You can use any attribue from the sensor. For example, to show the title on lovelace card, use this code syntax: 
 ```{{ state_attr('binary_sensor.red_alert', 'title') }}```
 | Attribute name | Means | Example |
 | ----- | ----- | ----- |
@@ -106,6 +112,10 @@ You can use any attribue from the sensor. For example, to show the title on love
 | `data_count` | Number of cities that are attacked | `1` |
 | `emoji` | Icon for type of attack | `🚀` |
 | `prev_*` | Last data from each attribue | Stores the most recent information when the sensor was active |
+| `alert` | One line full text  | `ירי רקטות וטילים ב־קו העימות - בצת, שלומי` |
+| `alert_alt` | Breaking line full text | ` ירי רקטות וטילים/n* קו העימות: בצת, שלומי` |
+| `alert_txt` | One line text | `קו העימות: בצת, שלומי` |
+| `alert_wa` | Optimize text message to send via whatsapp | ![whatsapp](https://github.com/idodov/RedAlert/assets/19820046/817c72f4-70b1-4499-b831-e5daf55b6220) |
 
 # Usage *binary_sensor.red_alert* for Home Assistant
 ## Lovelace Card Example
