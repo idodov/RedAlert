@@ -1,3 +1,11 @@
+The script will create 3 Home Assistant sensors, by the name you choose (in sensor_name, as exemplified here, the value is ‘red_alert’):
+* `binary_sensor.red_alert` - will be on when there is an alarm anywhere in Israel
+* `binary_sensor.red_alert_city` - will be on when there is an alarm in any city that is on the city_names list
+* `text_input.red_alert` - will store all the historical data for viewing in the Home Assistant logbook
+
+The sensor attributes contain several message formats to display or send as notifications.
+You also have the flexibility to display or use any of the attributes of the sensor to create more sub-sensors from the main binary_sensor.red_alert
+
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
@@ -50,7 +58,7 @@ red_alerts_israel:
   class: Red_Alerts_Israel
   interval: 2
   timer: 120
-  sensor_name: "oref_alert"
+  sensor_name: "red_alert"
   test: False
   city_names: "שתולה, קרית שמונה, כיסופים, שלומי, ראש הנקרה ,תל אביב - מרכז העיר, שניר" 
 ```
