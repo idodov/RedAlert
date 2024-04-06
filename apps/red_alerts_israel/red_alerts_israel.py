@@ -215,7 +215,7 @@ class Red_Alerts_Israel(Hass):
                 now = datetime.now()
                 day_name_hebrew = day_names[now.strftime('%A')]
                 date_time_str = f"\nהתרעה נשלחה ב{day_name_hebrew} ה-{now.strftime('%d/%m/%Y')} בשעה {now.strftime('%H:%M')}"
-                with open('/homeassistant/www/red_alert_history.txt', 'a') as f:
+                with open('/homeassistant/www/red_alert_history.txt', 'a', encoding='utf-8-sig') as f:
                     print(date_time_str, file=f)
                     print(full_message_str, file=f)
 
