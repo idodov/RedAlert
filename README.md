@@ -1,14 +1,34 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
 ***Not Official Pikud Ha-Oref***
+
+This script generates a series of binary sensors that provide alerts for all threats that PIKUD HA-OREF warns against. These threats include red alerts for rocket and missile launches, unauthorized aircraft intrusions, earthquakes, potential tsunamis, terrorist infiltrations, hazardous materials incidents, unconventional warfare, and other threats. When an alert is received, the nature of the threat is displayed at the beginning of the alert (for example, ‘ירי רקטות וטילים’).
 ____
-### This script introduces three new entities in Home Assistant:
+### This script introduces four new entities in Home Assistant:
+> [!NOTE]
+> **You have the flexibility to define the sensor name as per your preference. The default sensor name value is `red_alert`.**
 * `binary_sensor.red_alert`, which stores PIKUD HA-OREF data. This sensor activates whenever there is an alarm and deactivates otherwise. It can be utilized in automations or to create sub-sensors/binary sensors.
 * `binary_sensor.red_alert_city`, which also stores PIKUD-HA-OREF data. However, it only activates if the city you define is included in the alarm cities.
 * `input_text.red_alert`, which stores the latest alert information, primarily for historical reference.
+* `input_boolean.red_alert`, which activate a false alert - design to test automations.
 
-The binary sensor provides a warning for all threats that the PIKUD HA-OREF alerts for, including red alerts rocket and missile launches, unauthorized aircraft penetration, earthquakes, tsunami concerns, infiltration of terrorists, hazardous materials incidents, unconventional warfare, and any other threat. When the alert is received, the nature of the threat will appear at the beginning of the alert (e.g., 'ירי רקטות וטילים').
-> [!NOTE]
-> **You have the flexibility to define the sensor name as per your preference. The default sensor name value is `red_alert`.**
+> [!TIP]
+> To ensure the history of sensors is maintained after a restart in Home Assistant, it’s advisable to establish input text and boolean helpers. It’s best to do this prior to installation. Here’s how you can proceed:
+> 1. Open `configuration.yaml`.
+> 2. Add this lines and restart Home Assistant:
+> ```yaml
+> #/homeassistant/configuration.yaml
+> input_text:
+>   red_alert:
+>     name: Last Alert in Israel
+>     min: 0
+>     max: 255
+>
+> input_boolean:
+>   oref_alert_test:
+>     name: Test Alert
+>     icon: mdi:alert-circle
+> ```
+
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
@@ -43,7 +63,6 @@ The binary sensor provides a warning for all threats that the PIKUD HA-OREF aler
 >     admin:
 >     api:
 >     hadashboard:
->     ```
 
 ### Manual Download
 1. Download the Python file from [This Link](https://github.com/idodov/RedAlert/blob/main/apps/red_alerts_israel/red_alerts_israel.py).
@@ -63,9 +82,11 @@ red_alerts_israel:
   class: Red_Alerts_Israel
   interval: 2
   timer: 120
-  sensor_name: "red_alert" # The name of the sensors - you can define it to your own name, like "oref_alert"
-  test: False
-  city_names: "שתולה, קרית שמונה, כיסופים, שלומי, ראש הנקרה, תל אביב - מרכז העיר, שניר"
+  sensor_name: "red_alert"
+  save_2_file: True
+  city_names:
+    - תל אביב - מרכז העיר
+    - כיסופים
 ```
 
 | Parameter | Description | Example |
@@ -73,27 +94,16 @@ red_alerts_israel:
 | `interval` | The interval in seconds at which the script runs | `2` |
 | `timer` | The duration, in seconds, for which the sensor remains on after an alert | `120` |
 | `sensor_name` | The name of the primary binary sensor in Home Assistant (`binary_sensor.#sensor_name#`) | `red_alert` |
-| `test` | A boolean value indicating whether to check the sensor by sending text data | `False` |
-| `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city`. You can add as many cities you want | `ראשון לציון - מערב, תל אביב - דרום` |
-
-> [!TIP]
-> Since Home Assistant won't preserve the history of the sensors after a restart, it's recommended to create an input text helper. Here are the steps to do this:
-> 1. Open `configuration.yaml`.
-> 2. Add this lines and restart Home Assistant:
-> ```yaml
->   #/homeassistant/configuration.yaml
->   input_text:
->     red_alert:
->       name: Last Alert in Israel
->       min: 0
->       max: 255
-> ```
+| `save_2_file` | An option to save the alerts information in a text file | `True` |
+| `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city`. You can add as many cities you want | `תל אביב - מרכז העיר` |
 _______
-## YOU ARE ALL SET!
-After restarting the AppDaemon addon, Home Assistant will generate 3 entities. 
-* The first entity called `binary_sensor.red_alert`, is the main sensor. This sensor will be **on** if there is a Red Alert in Israel, and **off** otherwise. The sensor also includes attributes that can serve various purposes, including category, ID, title, data, description, the number of active alerts, and emojis.
-* The second entity is a binary sensor named `binary_sensor.red_alert_city`, which also stores PIKUD-HA-OREF data. However, it only activates if the city you define is included in the alarm cities.
-* The third entity `input_text.red_alert` is primarily designed for historical alert records on the logbook screen. Please be aware that Home Assistant has an internal character limit of 255 characters for text entities. This limitation means that during significant events, like a large-scale attack involving multiple areas or cities, some data may be truncated or lost. Therefore, it is highly discouraged to use the text input entity as a trigger for automations or to create sub-sensors from it.
+## YOU ARE ALL SET!  
+Upon restarting the AppDaemon add-on, Home Assistant will create four entities:
+* The primary entity, `binary_sensor.red_alert`, activates when there’s a Red Alert in Israel and deactivates otherwise. This sensor also includes various attributes such as category, ID, title, data, description, the count of active alerts, and emojis.
+* The second entity, `binary_sensor.red_alert_city`, stores PIKUD-HA-OREF data and only activates if the defined city is included in the alert cities.
+* The third entity, `input_text.red_alert`, is mainly for recording historical alert data on the logbook screen. Please note that Home Assistant has a character limit of 255 for text entities. This means that during significant events, like large-scale attacks involving multiple areas or cities, some data might be truncated or lost. Hence, it’s not recommended to use this text input entity as a trigger for automations or to create sub-sensors from it.
+* The final entity, `input_boolean.red_alert`, when toggled on, sends false data to the sensor, which activates it for the period you defined in the `timer` value.
+
 > [!TIP]
 > Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run
 ## binary_sensor.red_alert Attribues
@@ -116,6 +126,7 @@ You can use any attribue from the sensor. For example, to show the title on love
 | `alert_alt` | Breaking line full text | ` ירי רקטות וטילים/n* קו העימות: בצת, שלומי` |
 | `alert_txt` | One line text | `קו העימות: בצת, שלומי` |
 | `alert_wa` | Optimize text message to send via whatsapp | ![whatsapp](https://github.com/idodov/RedAlert/assets/19820046/817c72f4-70b1-4499-b831-e5daf55b6220) |
+| `alert_tg` | Optimize text message to send via telegram |  |
 
 **Example:**
 ```yaml
@@ -135,23 +146,28 @@ prev_last_changed: "2024-03-29T20:18:36.354636"
 prev_cat: 1
 prev_title: ירי רקטות וטילים
 prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-prev_data: אבירים, פסוטה
-prev_data_count: 2
+prev_data: שלומי
+prev_data_count: 1
 prev_duration: 600
 prev_areas: קו העימות
-alert: ירי רקטות וטילים ב־קו העימות - אבירים, פסוטה
+alert: "ירי רקטות וטילים ב־קו העימות: שלומי"
 alert_alt: |-
   ירי רקטות וטילים
-   * קו העימות: אבירים, פסוטה
-alert_txt: "קו העימות: אבירים, פסוטה"
+   * קו העימות: שלומי
+alert_txt: "קו העימות: שלומי"
 alert_wa: |-
   🚀 *ירי רקטות וטילים*
   > קו העימות
-  אבירים, פסוטה
+  שלומי
 
   _היכנסו למרחב המוגן ושהו בו 10 דקות_
-friendly_name: red_alert
+friendly_name: All Red Alerts
 icon: mdi:alert
+alert_tg: |-
+  🚀 **ירי רקטות וטילים**
+  **__קו העימות__** — שלומי
+
+  __היכנסו למרחב המוגן ושהו בו 10 דקות__
 ```
 
 # Usage *binary_sensor.red_alert* for Home Assistant
