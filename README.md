@@ -9,7 +9,7 @@ ____
 * `binary_sensor.red_alert`, which stores PIKUD HA-OREF data. This sensor activates whenever there is an alarm and deactivates otherwise. It can be utilized in automations or to create sub-sensors/binary sensors.
 * `binary_sensor.red_alert_city`, which also stores PIKUD-HA-OREF data. However, it only activates if the city you define is included in the alarm cities.
 * `input_text.red_alert`, which stores the latest alert information, primarily for historical reference.
-* `input_boolean.red_alert`, which activate a false alert - design to test automations.
+* `input_boolean.red_alert_test`, which activate a false alert - design to test automations.
 
 > [!TIP]
 > To ensure the history of sensors is maintained after a restart in Home Assistant, it’s advisable to establish input text and boolean helpers. It’s best to do this prior to installation. Here’s how you can proceed:
@@ -102,7 +102,7 @@ Upon restarting the AppDaemon add-on, Home Assistant will create four entities:
 * The primary entity, `binary_sensor.red_alert`, activates when there’s a Red Alert in Israel and deactivates otherwise. This sensor also includes various attributes such as category, ID, title, data, description, the count of active alerts, and emojis.
 * The second entity, `binary_sensor.red_alert_city`, stores PIKUD-HA-OREF data and only activates if the defined city is included in the alert cities.
 * The third entity, `input_text.red_alert`, is mainly for recording historical alert data on the logbook screen. Please note that Home Assistant has a character limit of 255 for text entities. This means that during significant events, like large-scale attacks involving multiple areas or cities, some data might be truncated or lost. Hence, it’s not recommended to use this text input entity as a trigger for automations or to create sub-sensors from it.
-* The final entity, `input_boolean.red_alert`, when toggled on, sends false data to the sensor, which activates it for the period you defined in the `timer` value.
+* The final entity, `input_boolean.red_alert_test`, when toggled on, sends false data to the sensor, which activates it for the period you defined in the `timer` value.
 
 ![red-alerts-sensors](https://github.com/idodov/RedAlert/assets/19820046/e0e779fc-ed92-4f4e-8e36-4116324cd089)
 > [!TIP]
@@ -382,7 +382,7 @@ action:
       title: ההתרעה הוסרה
       message: אפשר לחזור לשגרה
 ```
-### Creating Sub Sensors
+## Creating Sub Sensors
 While you need to specify the cities in which the secondary binary sensor will be activated, you also have the flexibility to define additional sub-sensors based on the main sensor. Here are a few examples of how you can do this.
 > [!NOTE]
 > To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
