@@ -88,7 +88,7 @@ Upon restarting the AppDaemon add-on, Home Assistant will create four entities:
 >     max: 255
 >
 > input_boolean:
->   oref_alert_test:
+>   red_alert_test:
 >     name: Test Alert
 >     icon: mdi:alert-circle
 > ```
