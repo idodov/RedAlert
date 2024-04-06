@@ -104,6 +104,7 @@ Upon restarting the AppDaemon add-on, Home Assistant will create four entities:
 * The third entity, `input_text.red_alert`, is mainly for recording historical alert data on the logbook screen. Please note that Home Assistant has a character limit of 255 for text entities. This means that during significant events, like large-scale attacks involving multiple areas or cities, some data might be truncated or lost. Hence, it’s not recommended to use this text input entity as a trigger for automations or to create sub-sensors from it.
 * The final entity, `input_boolean.red_alert`, when toggled on, sends false data to the sensor, which activates it for the period you defined in the `timer` value.
 
+![red-alerts-sensors](https://github.com/idodov/RedAlert/assets/19820046/e0e779fc-ed92-4f4e-8e36-4116324cd089)
 > [!TIP]
 > Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run
 ## binary_sensor.red_alert Attribues
@@ -118,7 +119,7 @@ You can use any attribue from the sensor. For example, to show the title on love
 | `areas` | List of areas | `גוש דן` |
 | `desc` | Explain what to do |  `היכנסו למרחב המוגן ושהו בו 10 דקות` |
 | `duration` | How many seconds to be in the safe room | `600` |
-| `id` | Id of the alert | 133413399870000000 |
+| `id` | Id of the alert | `133413399870000000` |
 | `data_count` | Number of cities that are attacked | `1` |
 | `emoji` | Icon for type of attack | `🚀` |
 | `prev_*` | Last data from each attribue | Stores the most recent information when the sensor was active |
@@ -169,8 +170,11 @@ alert_tg: |-
 
   __היכנסו למרחב המוגן ושהו בו 10 דקות__
 ```
+# Usage *Red Alert* for Home Assistant
+## History File
+The script stores the sensor data in a text file named `red_alert_history.txt`, located in the `\\homeassistant\config\www` directory. Each time an alert (including test alerts) is triggered, the file gets updated. You can directly access this file from your browser using the provided URL: [ http://homeassistant.local:8123/loca/red_alert_history.txt](http://homeassistant.local:8123/local/red_alert_history.txt)
 
-# Usage *binary_sensor.red_alert* for Home Assistant
+![red-alert-txt](https://github.com/idodov/RedAlert/assets/19820046/70e28cd2-2aee-4519-a0d6-6ac415c703e7)
 ## Lovelace Card Example
 Displays whether there is an alert, the number of active alerts, and their respective locations.
 
@@ -378,7 +382,7 @@ action:
       title: ההתרעה הוסרה
       message: אפשר לחזור לשגרה
 ```
-## Creating Sub Sensors
+### Creating Sub Sensors
 While you need to specify the cities in which the secondary binary sensor will be activated, you also have the flexibility to define additional sub-sensors based on the main sensor. Here are a few examples of how you can do this.
 > [!NOTE]
 > To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
@@ -386,11 +390,11 @@ While you need to specify the cities in which the secondary binary sensor will b
 > ```
 > {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
 > ```
-### Yavne city and not Gan-Yavne city
+#### Yavne city and not Gan-Yavne city
 ```
 {{ "יבנה" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
 ```
-### Multiple cities or city areas
+#### Multiple cities or city areas
 ```
 {{ "אירוס" in state_attr('binary_sensor.red_alert', 'data').split(', ')
  or "בית חנן" in state_attr('binary_sensor.red_alert', 'data').split(', ')
@@ -409,7 +413,7 @@ Israel is segmented into 30 metropolitan areas, allowing you to determine the ge
 ```
 {{ "גוש דן" in state_attr('binary_sensor.red_alert', 'areas').split(', ') }}
 ```
-## Red Alert Trigger for Particular Type of Alert:
+### Red Alert Trigger for Particular Type of Alert:
 The **'cat'** attribute defines the alert type, with a range from 1 to 13. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
 | Cat (number) | Type of Alert |
 | ---- | --- |
