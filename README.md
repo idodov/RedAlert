@@ -109,6 +109,7 @@ Upon restarting the AppDaemon add-on, Home Assistant will create four entities:
 > Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run.
 > 
 > You can also create a special markdown card to track the sensor:
+> 
 > ![runs](https://github.com/idodov/RedAlert/assets/19820046/ba01b903-7cd8-4549-9859-8081d8f11712)
 > ```yaml
 > type: markdown
