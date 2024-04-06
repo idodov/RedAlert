@@ -106,7 +106,23 @@ Upon restarting the AppDaemon add-on, Home Assistant will create four entities:
 
 ![red-alerts-sensors](https://github.com/idodov/RedAlert/assets/19820046/e0e779fc-ed92-4f4e-8e36-4116324cd089)
 > [!TIP]
-> Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run
+> Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run.
+> 
+> You can also create a special markdown card to track the sensor:
+> ![runs](https://github.com/idodov/RedAlert/assets/19820046/ba01b903-7cd8-4549-9859-8081d8f11712)
+> ```yaml
+> type: markdown
+> content: >-
+>   {% set status = (as_timestamp(now()) -
+>   as_timestamp(states.binary_sensor.red_alert.last_updated)) < 30 %}
+>   {% if status %}
+>   <ha-alert alert-type="info">Run **{{ state_attr('binary_sensor.oref_alert', 'count') }}** times since restart
+>   {% else %}
+>   <ha-alert alert-type="warning">**SCRIPT IS NOT RUNNING!!!**
+>   {% endif %}
+>   </ha-alert>
+> ```
+
 ## binary_sensor.red_alert Attribues
 You can use any attribue from the sensor. For example, to show the title on lovelace card, use this code syntax: 
 ```{{ state_attr('binary_sensor.red_alert', 'title') }}```
