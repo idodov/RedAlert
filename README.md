@@ -1,16 +1,19 @@
 # Israeli Red Alert Service for Home Assistant (AppDaemon)
 ***Not Official Pikud Ha-Oref***
 
-This script generates a series of binary sensors that provide alerts for all threats that PIKUD HA-OREF warns against. These threats include red alerts for rocket and missile launches, unauthorized aircraft intrusions, earthquakes, potential tsunamis, terrorist infiltrations, hazardous materials incidents, unconventional warfare, and other threats. When an alert is received, the nature of the threat is displayed at the beginning of the alert (for example, ‘ירי רקטות וטילים’).
+This script creates a suite of binary sensors that issue warnings for all hazards signaled by PIKUD HA-OREF. These hazards encompass red alerts for missile and rocket fire, breaches by unauthorized aircraft, seismic activity, tsunami warnings, terrorist incursions, chemical spill emergencies, non-conventional warfare, among other dangers. Upon receiving an alert, the specific type of threat is indicated at the start of the message (for instance, `ירי רקטות וטילים` for rocket and missile fire).
+
+Moreover, the script offers additional functionalities, such as archiving all alert details in a historical text file and facilitating the creation of additional sub-sensors derived from the primary sensor.
+
 ____
 ### This script introduces four new entities in Home Assistant:
 > [!NOTE]
-> **You have the flexibility to define the sensor name as per your preference. The default sensor name value is `red_alert`.**
-* `binary_sensor.red_alert`, which stores PIKUD HA-OREF data. This sensor activates whenever there is an alarm and deactivates otherwise. It can be utilized in automations or to create sub-sensors/binary sensors.
-* `binary_sensor.red_alert_city`, which also stores PIKUD-HA-OREF data. However, it only activates if the city you define is included in the alarm cities.
-* `input_text.red_alert`, which stores the latest alert information, primarily for historical reference.
-* `input_boolean.red_alert_test`, which activate a false alert - design to test automations.
-
+> **You can customize the sensor name to your liking, with `red_alert` set as the default.**
+* `binary_sensor.red_alert`: Holds PIKUD HA-OREF data, triggering on alarms and resetting otherwise. It’s useful for automations or creating additional sensors.
+* `binary_sensor.red_alert_city`: Similar to the above but only triggers if the specified city is targeted by the alarm.
+* `input_text.red_alert`: Logs the most recent alert data, serving as a historical log.
+* `input_boolean.red_alert_test`: Simulates a dummy alert to verify automation setups.
+# Installation Instructions
 > [!TIP]
 > To ensure the history of sensors is maintained after a restart in Home Assistant, it’s advisable to establish input text and boolean helpers. It’s best to do this prior to installation. Here’s how you can proceed:
 > 1. Open `configuration.yaml`.
@@ -28,11 +31,9 @@ ____
 >     name: Test Alert
 >     icon: mdi:alert-circle
 > ```
-
-# Installation Instructions
-1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
+1. Install the **AppDaemon** addon in Home Assistant by going to `Settings` > `Add-ons` > `Ad-on-store` and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
-3. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
+3. Go to the AppDaemon ***configuration*** page and add `requests` ***Python package*** under the Python Packages section.
 
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 
@@ -66,14 +67,14 @@ ____
 
 ### Manual Download
 1. Download the Python file from [This Link](https://github.com/idodov/RedAlert/blob/main/apps/red_alerts_israel/red_alerts_israel.py).
-2. Place the downloaded file inside the `appdaemon/apps` directory and proceed to the final step
+2. Place the downloaded file inside the `appdaemon/apps` directory and proceed to the **final step**
 ### HACS Download
 1. In Home Assistant: Navigate to `HACS > Automation`
    * If this option is not available, go to `Settings > Integrations > HACS > Configure` and enable `AppDaemon apps discovery & tracking`. After enabling, return to the main HACS screen and select `Automation`
 2. Navigate to the `Custom Repositories` page and add the following repository as `Appdaemon`: `https://github.com/idodov/RedAlert/`
-3. Return to the `HACS Automation` screen, search for `Red Alerts Israel`, click on `Download` and proceed to the final step
+3. Return to the `HACS Automation` screen, search for `Red Alerts Israel`, click on `Download` and proceed to the **final step**
 ### Final Step
-In the `/appdaemon/apps/apps.yaml` file, add the following code. **Make sure to replace the city_names values as described below and save the file:**
+In the `/appdaemon/apps/apps.yaml` file, add the following code. **Make sure to replace the `city_names` values as exampled below and save the file:**
 
 ```yaml
 #/appdaemon/apps/apps.yaml
@@ -87,6 +88,7 @@ red_alerts_israel:
   city_names:
     - תל אביב - מרכז העיר
     - כיסופים
+    - שדרות, איבים, ניר עם
 ```
 
 | Parameter | Description | Example |
@@ -95,14 +97,14 @@ red_alerts_israel:
 | `timer` | The duration, in seconds, for which the sensor remains on after an alert | `120` |
 | `sensor_name` | The name of the primary binary sensor in Home Assistant (`binary_sensor.#sensor_name#`) | `red_alert` |
 | `save_2_file` | An option to save the alerts information in a text file | `True` |
-| `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city`. You can add as many cities you want | `תל אביב - מרכז העיר` |
+| `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city`. *You can add as many cities you want* | `תל אביב - מרכז העיר` |
 _______
 ## YOU ARE ALL SET!  
-Upon restarting the AppDaemon add-on, Home Assistant will create four entities:
-* The primary entity, `binary_sensor.red_alert`, activates when there’s a Red Alert in Israel and deactivates otherwise. This sensor also includes various attributes such as category, ID, title, data, description, the count of active alerts, and emojis.
-* The second entity, `binary_sensor.red_alert_city`, stores PIKUD-HA-OREF data and only activates if the defined city is included in the alert cities.
-* The third entity, `input_text.red_alert`, is mainly for recording historical alert data on the logbook screen. Please note that Home Assistant has a character limit of 255 for text entities. This means that during significant events, like large-scale attacks involving multiple areas or cities, some data might be truncated or lost. Hence, it’s not recommended to use this text input entity as a trigger for automations or to create sub-sensors from it.
-* The final entity, `input_boolean.red_alert_test`, when toggled on, sends false data to the sensor, which activates it for the period you defined in the `timer` value.
+Home Assistant initializes four distinct entities:
+* `binary_sensor.red_alert`: This is the main entity that becomes active during a Red Alert in Israel and reverts to inactive otherwise. It encompasses a range of attributes like category, ID, title, data, description, active alert count, and emojis.
+* `binary_sensor.red_alert_city`: This entity retains PIKUD-HA-OREF data and is activated solely if the alert includes the specified city.
+* `input_text.red_alert`: Intended for logging alert history in the logbook. Given Home Assistant’s 255-character limit for text entities, extensive events may lead to data being cut off or omitted. Therefore, it’s inadvisable to rely on this entity for automation triggers or to generate sub-sensors.
+* `input_boolean.red_alert_test`: Flipping this switch generates fictitious data (for selected cities) that activates the sensor for a set duration as per the `timer` configuration.
 
 ![red-alerts-sensors](https://github.com/idodov/RedAlert/assets/19820046/e0e779fc-ed92-4f4e-8e36-4116324cd089)
 > [!TIP]
@@ -189,7 +191,7 @@ alert_tg: |-
 ```
 # Usage *Red Alert* for Home Assistant
 ## History File
-The script stores the sensor data in a text file named `red_alert_history.txt`, located in the `\\homeassistant\config\www` directory. Each time an alert (including test alerts) is triggered, the file gets updated. You can directly access this file from your browser using the provided URL: [ http://homeassistant.local:8123/loca/red_alert_history.txt](http://homeassistant.local:8123/local/red_alert_history.txt)
+The script stores the sensor data in a text file named `red_alert_history.txt`, located in the `\\homeassistant\config\www` directory. Each time an alert (including test alerts) is triggered, the file gets updated. You can directly access this file from your browser using the provided URL: [ http://homeassistant.local:8123/local/red_alert_history.txt](http://homeassistant.local:8123/local/red_alert_history.txt)
 
 ![red-alert-txt](https://github.com/idodov/RedAlert/assets/19820046/70e28cd2-2aee-4519-a0d6-6ac415c703e7)
 ## Lovelace Card Example
