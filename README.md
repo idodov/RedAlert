@@ -218,7 +218,7 @@ Using this script, you have the flexibility to include additional information, s
 
 ![TILIMA](https://github.com/idodov/RedAlert/assets/19820046/4ba18dde-ae0c-4415-a55d-80ed0c010cbc)
 ![LAST](https://github.com/idodov/RedAlert/assets/19820046/ae52bc94-46ba-4cdb-b92b-36220500ee48)
-```
+```yaml
 type: markdown
 content: >-
   <center><h3>{% if state_attr('binary_sensor.red_alert', 'data_count') > 0 %}
@@ -257,7 +257,7 @@ content: >-
 
 ![3333](https://github.com/idodov/RedAlert/assets/19820046/438c0870-56e8-461b-a1e5-aa24122a71bc)
 ![000000](https://github.com/idodov/RedAlert/assets/19820046/2d6da8d4-2f84-46d4-9f52-baffdbd4b54b)
-```
+```yaml
 type: markdown
 content: >-
   <ha-icon icon="{{ state_attr('binary_sensor.red_alert', 'icon')
