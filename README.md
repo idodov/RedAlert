@@ -39,6 +39,15 @@ ____
 
 4. **Start** the add-on
 5. In file editor open **\addon_configs\appdaemon\appdaemon.yaml** and make the changes under *appdeamon* section as described:
+> [!TIP]
+>  If you’re using the File Editor add-on, it’s set up by default to only allow file access to the main Home Assistant directory. However, the AppDaemon add-on files are located in the root directory. To access these files, follow these steps:
+> 1. Go to `Settings` > `Add-ons` > `File Editor` > `Configuration`
+> 2. Toggle off the `Enforce Basepath` option.
+> 3. In the File Editor, click on the arrow next to the directory name (which will be ‘homeassistant’). This should give you access to the root directory where the AppDaemon add-on files are located.
+> 
+>    ![arrow](https://github.com/idodov/RedAlert/assets/19820046/e57ea52d-d677-45b0-90c4-87723c5ddfea)
+
+
 > [!IMPORTANT]
 > You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/
 > *  `latitude: 31.9837528`
@@ -69,8 +78,8 @@ ____
 1. Download the Python file from [This Link](https://github.com/idodov/RedAlert/blob/main/apps/red_alerts_israel/red_alerts_israel.py).
 2. Place the downloaded file inside the `appdaemon/apps` directory and proceed to the **final step**
 ### HACS Download
-1. In Home Assistant: Navigate to `HACS > Automation`
-   * If this option is not available, go to `Settings > Integrations > HACS > Configure` and enable `AppDaemon apps discovery & tracking`. After enabling, return to the main HACS screen and select `Automation`
+1. In Home Assistant: Navigate to `HACS` > `Automation`
+   * If this option is not available, go to `Settings` > `Integrations` > `HACS` > `Configure` and enable `AppDaemon apps discovery & tracking`. After enabling, return to the main HACS screen and select `Automation`
 2. Navigate to the `Custom Repositories` page and add the following repository as `Appdaemon`: `https://github.com/idodov/RedAlert/`
 3. Return to the `HACS Automation` screen, search for `Red Alerts Israel`, click on `Download` and proceed to the **final step**
 ### Final Step
@@ -119,7 +128,7 @@ Home Assistant initializes four distinct entities:
 >   {% set status = (as_timestamp(now()) -
 >   as_timestamp(states.binary_sensor.red_alert.last_updated)) < 30 %}
 >   {% if status %}
->   <ha-alert alert-type="info">Run **{{ state_attr('binary_sensor.oref_alert', 'count') }}** times since restart
+>   <ha-alert alert-type="info">Run **{{ state_attr('binary_sensor.red_alert', 'count') }}** times since restart
 >   {% else %}
 >   <ha-alert alert-type="warning">**SCRIPT IS NOT RUNNING!!!**
 >   {% endif %}
