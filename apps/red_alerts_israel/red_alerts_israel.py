@@ -8,12 +8,13 @@ The script will create 4 Home Assistant sensors, by the name you choose (in sens
 * input_boolean.red_alert - will acrivate a fake alert design to test automations.
 
 The sensor attributes contain several message formats to display or send as notifications.
-You also have the flexibility to display or use any of the attributes of the sensor to create more sub-sensors from the main binary_sensor.red_alert
+You also have the flexibility to display or use any of the attributes of the sensor to create more sub-sensors from the main binary_sensor.red_alert.
 
 Configuration: 
 1. Open appdaemon/apps/apps.yaml
 2. Add the code line
 3. Save the code after you choose the city names as exemplified. You can add as many cities as you want. 
+* City names can be found here: https://github.com/idodov/RedAlert/blob/main/cities_name.md
 ---
 red_alerts_israel:
   module: red_alerts_israel
@@ -27,7 +28,9 @@ red_alerts_israel:
     - שלומי
     - כיסופים
     - שדרות, איבים, ניר עם
+
 """
+
 import requests
 import re
 import time
@@ -73,6 +76,13 @@ class Red_Alerts_Israel(Hass):
         self.city_sensor = f"binary_sensor.{self.main_sensor_arg}_city"
         self.main_text = f"input_text.{self.main_sensor_arg}"
         self.activate_alert = f"input_boolean.{self.main_sensor_arg}_test"
+        self.ERROR_NAME = False
+        for city in self.city_names_self:
+            # Find the original name corresponding to the standardized city
+            original_name = [n for n in self.pkr_def_city if re.sub(r'[\-\,\(\)\s\'\’\"]+', '', n).strip() == city][0]
+            if not any(city in cities for cities in self.lamas['areas'].values()):
+                self.log(f"-------\nATTENTION! '{original_name}' is invalid name.\nThe secondary binary sensor is unable to operate because “{original_name}” is not recognized in any region.\nTo resolve this issue, please correct the “city_names” entry in the apps.yaml file.\nCity names can be found here: https://github.com/idodov/RedAlert/blob/main/cities_name.md")
+                self.ERROR_NAME = original_name
 
         if not self.entity_exists(self.main_sensor):
             self.set_state(self.main_sensor, state="off", attributes={"count": 0, "id":0, "cat": 0, "title": "", "desc": "", "data": "", "areas": "", "data_count": 0, "duration": 0, "last_changed": "", "emoji":  "🚨", "icon_alert": "mdi:alert", "prev_last_changed": datetime.now().isoformat(), "prev_cat": 0,  "prev_title": "מפוצצים את עזה", "prev_desc": "תישארו בחוץ", "prev_data" :"בית חאנון, בית לאהיא, בני סוהילה, ג'באליה, דיר אל-בלח, ח'אן יונס, עבסאן אל-כבירה, עזה, רפיח", "prev_data_count": 9,"prev_duration": 10, "prev_areas": "רצועת עזה", "prev_last_changed": datetime.now().isoformat(), "alert": "", "alert_alt": "", "alert_txt": "", "alert_wa": "", "friendly_name": "All Red Alerts",})
@@ -86,6 +96,10 @@ class Red_Alerts_Israel(Hass):
         if not self.entity_exists(self.city_sensor):
             self.set_state(self.city_sensor, state="off", attributes={"id":0, "cat": 0, "title": "", "desc": "", "data": "", "areas": "", "data_count": 0, "duration": 0, "last_changed": "", "emoji":  "🚨", "icon_alert": "mdi:alert",  "prev_last_changed": datetime.now().isoformat(), "prev_cat": 0,  "prev_title": "אין התרעות", "prev_desc": "מצב רגיל", "prev_data" :"", "prev_data_count": 0,"prev_duration": 0, "prev_areas": "", "prev_last_changed": datetime.now().isoformat(), "friendly_name": "City Red Alerts"})
         self.set_state(self.city_sensor, state="off")
+        
+        if self.ERROR_NAME:
+            self.set_state(self.city_sensor, state="off", attributes={"friendly_name": f"ERROR: {self.ERROR_NAME}"})
+
 
         if not self.entity_exists(self.main_text):
             self.set_state(self.main_text, state="אין התרעות", attributes={"min": 0, "max": 255, "mode": "text", "friendly_name": "Last Red Alert in Israel"})
