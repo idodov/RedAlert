@@ -3,8 +3,7 @@
 
 This script creates a suite of binary sensors that issue warnings for all hazards signaled by PIKUD HA-OREF. These hazards encompass red alerts for missile and rocket fire, breaches by unauthorized aircraft, seismic activity, tsunami warnings, terrorist incursions, chemical spill emergencies, non-conventional warfare, among other dangers. Upon receiving an alert, the specific type of threat is indicated at the start of the message (for instance, `ירי רקטות וטילים` for rocket and missile fire).
 
-Moreover, the script offers additional functionalities, such as archiving all alert details in a historical text file and facilitating the creation of additional sub-sensors derived from the primary sensor.
-
+The script offers additional functionalities, such as archiving all alert details in a historical text file and facilitating the creation of additional sub-sensors derived from the primary sensor.
 ____
 ### This script introduces four new entities in Home Assistant:
 > [!NOTE]
@@ -19,7 +18,7 @@ ____
 > 1. Open `configuration.yaml`.
 > 2. Add this lines and restart Home Assistant:
 > ```yaml
-> #/homeassistant/configuration.yaml
+> #/config/configuration.yaml
 > input_text:
 >   red_alert:
 >     name: Last Alert in Israel
@@ -38,7 +37,7 @@ ____
 ![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
 
 4. **Start** the add-on
-5. In file editor open **\addon_configs\appdaemon\appdaemon.yaml** and make the changes under *appdeamon* section as described:
+5. In file editor open **`/addon_configs/a0d7b954_appdaemon/appdaemon.yaml`** and make the changes under *appdeamon* section as described:
 > [!TIP]
 >  If you’re using the File Editor add-on, it’s set up by default to only allow file access to the main Home Assistant directory. However, the AppDaemon add-on files are located in the root directory. To access these files, follow these steps:
 > 1. Go to `Settings` > `Add-ons` > `File Editor` > `Configuration`
@@ -54,7 +53,7 @@ ____
 > *  `longitude: 34.7359077`
 > *  `time_zone: Asia/Jerusalem`.
 > *   If you install this script via HACS - **Specify the apps directory in `app_dir: /homeassistant/appdaemon/apps/`.**
->     * Also, remember to **transfer** all files from `/addon_configs/a0d7b954_appdaemon/apps/` to `/homeassistant/appdaemon/apps/`.
+>     * Also **transfer** all files from `/addon_configs/a0d7b954_appdaemon/apps` to `/config/appdaemon/apps`.
 >   ```yaml
 >     #/addon_configs/a0d7b954_appdaemon/appdaemon.yaml
 >     ---
@@ -73,19 +72,20 @@ ____
 >     admin:
 >     api:
 >     hadashboard:
-
+You have two choices to download the script: manually or via HACS. Installing from HACS ensures that if any new version of the script becomes available, you’ll receive a notification in Home Assistant. Manual download won’t provide you with future automatic updates. Pick the method that suits you best.
 ### Manual Download
 1. Download the Python file from [This Link](https://github.com/idodov/RedAlert/blob/main/apps/red_alerts_israel/red_alerts_israel.py).
-2. Place the downloaded file inside the `appdaemon/apps` directory and proceed to the **final step**
+2. Place the downloaded file inside the `/addon_configs/a0d7b954_appdaemon/apps` directory and proceed to the **final step**
 ### HACS Download
 1. In Home Assistant: Navigate to `HACS` > `Automation`
    * If this option is not available, go to `Settings` > `Integrations` > `HACS` > `Configure` and enable `AppDaemon apps discovery & tracking`. After enabling, return to the main HACS screen and select `Automation`
 2. Navigate to the `Custom Repositories` page and add the following repository as `Appdaemon`: `https://github.com/idodov/RedAlert/`
 3. Return to the `HACS Automation` screen, search for `Red Alerts Israel`, click on `Download` and proceed to the **final step**
 ### Final Step
-In the `/appdaemon/apps/apps.yaml` file, add the following code. **Make sure to replace the `city_names` values as exampled below and save the file:**
+In the `appdaemon/apps/apps.yaml` file, add the following code. 
 
-```yaml
+**Make sure to replace the `city_names` values as PIKUD HA-OREF defines them. For example, don’t write `תל אביב`, instead write: `תל אביב - דרום העיר`.**
+```yam
 #/appdaemon/apps/apps.yaml
 red_alerts_israel:
   module: red_alerts_israel
@@ -98,6 +98,8 @@ red_alerts_israel:
     - תל אביב - מרכז העיר
     - כיסופים
     - שדרות, איבים, ניר עם
+    - אשדוד א,ב,ד,ה
+    - נתיב הל''ה
 ```
 
 | Parameter | Description | Example |
@@ -115,7 +117,24 @@ Home Assistant initializes four distinct entities:
 * `input_text.red_alert`: Intended for logging alert history in the logbook. Given Home Assistant’s 255-character limit for text entities, extensive events may lead to data being cut off or omitted. Therefore, it’s inadvisable to rely on this entity for automation triggers or to generate sub-sensors.
 * `input_boolean.red_alert_test`: Flipping this switch generates fictitious data (for selected cities) that activates the sensor for a set duration as per the `timer` configuration.
 
+**Card Example**
+
 ![red-alerts-sensors](https://github.com/idodov/RedAlert/assets/19820046/e0e779fc-ed92-4f4e-8e36-4116324cd089)
+```yaml
+type: vertical-stack
+cards:
+  - type: tile
+    entity: input_text.red_alert
+    vertical: true
+    state_content: last-changed
+  - type: entities
+    entities:
+      - entity: binary_sensor.red_alert
+      - entity: binary_sensor.red_alert_city
+      - entity: input_boolean.red_alert_test
+    state_color: true
+```
+
 > [!TIP]
 > Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run.
 > 
