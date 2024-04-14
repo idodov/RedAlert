@@ -81,7 +81,7 @@ class Red_Alerts_Israel(Hass):
             # Find the original name corresponding to the standardized city
             original_name = [n for n in self.pkr_def_city if re.sub(r'[\-\,\(\)\s\'\’\"]+', '', n).strip() == city][0]
             if not any(city in cities for cities in self.lamas['areas'].values()):
-                self.log(f"-------\nATTENTION! '{original_name}' is invalid name.\nThe secondary binary sensor is unable to operate because “{original_name}” is not recognized in any region.\nTo resolve this issue, please correct the “city_names” entry in the apps.yaml file.\nCity names can be found here: https://github.com/idodov/RedAlert/blob/main/cities_name.md")
+                print(f"-------\nATTENTION! '{original_name}' is invalid name.\nThe secondary binary sensor is unable to operate because “{original_name}” is not recognized in any region.\nTo resolve this issue, please correct the “city_names” entry in the apps.yaml file.\nCity names can be found here: https://github.com/idodov/RedAlert/blob/main/cities_name.md")
                 self.ERROR_NAME = original_name
 
         if not self.entity_exists(self.main_sensor):
