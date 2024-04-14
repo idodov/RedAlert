@@ -99,7 +99,8 @@ class Red_Alerts_Israel(Hass):
         
         if self.ERROR_NAME:
             self.set_state(self.city_sensor, state="off", attributes={"friendly_name": f"ERROR: {self.ERROR_NAME}"})
-
+        else:
+            self.set_state(self.city_sensor, state="off", attributes={"friendly_name": "City Red Alerts"})
 
         if not self.entity_exists(self.main_text):
             self.set_state(self.main_text, state="אין התרעות", attributes={"min": 0, "max": 255, "mode": "text", "friendly_name": "Last Red Alert in Israel"})
