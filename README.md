@@ -83,9 +83,11 @@ You have two choices to download the script: manually or via HACS. Installing fr
 3. Return to the `HACS Automation` screen, search for `Red Alerts Israel`, click on `Download` and proceed to the **final step**
 ### Final Step
 In the `appdaemon/apps/apps.yaml` file, add the following code. 
-
-**Make sure to replace the `city_names` values as PIKUD HA-OREF defines them. For example, don’t write `תל אביב`, instead write: `תל אביב - דרום העיר`.**
-```yam
+> [!IMPORTANT]
+> **Make sure to replace the `city_names` values as PIKUD HA-OREF defines them. For example, don’t write `תל אביב`, instead write: `תל אביב - דרום העיר`.**
+>
+> For a list of city and area names - [Click Here](https://github.com/idodov/RedAlert/blob/main/cities_name.md)
+```yaml
 #/appdaemon/apps/apps.yaml
 red_alerts_israel:
   module: red_alerts_israel
@@ -98,7 +100,7 @@ red_alerts_israel:
     - תל אביב - מרכז העיר
     - כיסופים
     - שדרות, איבים, ניר עם
-    - אשדוד א,ב,ד,ה
+    - אשדוד - א,ב,ד,ה
     - נתיב הל''ה
 ```
 
