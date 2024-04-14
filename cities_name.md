@@ -1,6 +1,6 @@
 In the `appdaemon/apps/apps.yaml` file - add the following code. 
 
-**Make sure to replace the `city_names` values as PIKUD HA-OREF defines them. For example  ★ don’t write `תל אביב`  - instead write: `תל אביב - דרום העיר`.**
+**Make sure to replace the `city_names` values as PIKUD HA-OREF defines them. For example don’t write `תל אביב`  - instead write: `תל אביב - מרכז העיר`.**
 ```yam
 #/appdaemon/apps/apps.yaml
 red_alerts_israel:
