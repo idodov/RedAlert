@@ -221,7 +221,9 @@ alert_tg: |-
 ```
 # Usage *Red Alert* for Home Assistant
 ## History File
-The script stores the sensor data in a text file named `red_alert_history.txt`, located in the `\\homeassistant\config\www` directory. Each time an alert (including test alerts) is triggered, the file gets updated. You can directly access this file from your browser using the provided URL: [ http://homeassistant.local:8123/local/red_alert_history.txt](http://homeassistant.local:8123/local/red_alert_history.txt)
+The script stores the sensor data in a text file named `red_alert_history.txt` and `red_alert_history.csv`, located in the `\\homeassistant\config\www` directory. Each time an alert (including test alerts) is triggered, the file gets updated. You can directly access this file from your browser using the provided URL: [ http://homeassistant.local:8123/local/red_alert_history.txt](http://homeassistant.local:8123/local/red_alert_history.txt)
+Also a dedicated CSV file will save the data that can be opened in any spreadsheet application, such as Excel or Google Sheets.
+
 
 ![red-alert-txt](https://github.com/idodov/RedAlert/assets/19820046/70e28cd2-2aee-4519-a0d6-6ac415c703e7)
 ## Lovelace Card Example
