@@ -109,7 +109,7 @@ red_alerts_israel:
 | `interval` | The interval in seconds at which the script runs | `2` |
 | `timer` | The duration, in seconds, for which the sensor remains on after an alert | `120` |
 | `sensor_name` | The name of the primary binary sensor in Home Assistant (`binary_sensor.#sensor_name#`) | `red_alert` |
-| `save_2_file` | Store historical data in a CSV files. Each time an alert is triggered, a dedicated TXT file and CSV file will save the data. This file is accessible from the Home Assistant WWW directory/ The CSV can be opened in any spreadsheet application, such as Excel or Google Sheets | `True` |
+| `save_2_file` | Store historical data files. Each time an alert is triggered, a dedicated TXT file and CSV file will save the data. This file is accessible from the Home Assistant WWW directory/ The CSV can be opened in any spreadsheet application, such as Excel or Google Sheets | `True` |
 | `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city`. *You can add as many cities you want* | `תל אביב - מרכז העיר` |
 _______
 ## YOU ARE ALL SET!  
