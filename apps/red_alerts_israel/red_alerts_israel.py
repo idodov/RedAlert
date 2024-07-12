@@ -149,7 +149,7 @@ class Red_Alerts_Israel(Hass):
     def get_first_alert_data(self):
         history_url = "https://www.oref.org.il/warningMessages/alert/History/AlertsHistory.json"
         try:
-            response = requests.get(history_url)
+            response = requests.get(history_url, headers=headers, timeout=30)
             if response.status_code == 200:
                 data = response.json()
                 if data and isinstance(data, list):
