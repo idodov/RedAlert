@@ -50,7 +50,7 @@ lamas_data = {"areas":{"רצועת עזה":{"עזה":{}},"גליל עליון":{
 icons_and_emojis = {0: ("mdi:alert", "❗"), 1: ("mdi:rocket-launch", "🚀"),2: ("mdi:home-alert", "⚠️"),3: ("mdi:earth-box", "🌍"), 4: ("mdi:chemical-weapon", "☢️"),5: ("mdi:waves", "🌊"),6: ("mdi:airplane", "🛩️"), 7: ("mdi:skull", "💀"),8: ("mdi:alert", "❗"),9: ("mdi:alert", "❗"),10: ("mdi:alert", "❗"),11: ("mdi:alert", "❗"),12: ("mdi:alert", "❗"), 13: ("mdi:run-fast", "👹"),}
 def_attributes = {"id": 0,"cat": 0,"title": "אין התרעות","desc": "", "data": "", "areas": "", "data_count": 0,"duration": 0,"icon": "mdi:alert", "emoji": "⚠️"}
 day_names = {'Sunday': 'יום ראשון', 'Monday': 'יום שני', 'Tuesday': 'יום שלישי', 'Wednesday': 'יום רביעי', 'Thursday': 'יום חמישי', 'Friday': 'יום שישי', 'Saturday': 'יום שבת' }
-false_data_json = {"id": 0, "cat": "1", "title": "ירי רקטות וטילים", "data": ["עזה"], "time": f"{datetime.now().isoformat()}"}        
+false_data_json = {"id": 0, "cat": "1", "title": "ירי רקטות וטילים", "data": ["עזה"], "alertDate": f"{datetime.now().isoformat()}"}
 
 class Red_Alerts_Israel(Hass):
     def initialize(self):
@@ -83,6 +83,7 @@ class Red_Alerts_Israel(Hass):
         self.history_file = f"/homeassistant/www/{self.main_sensor_arg}_history.txt"
         self.history_file_csv = f"/homeassistant/www/{self.main_sensor_arg}_history.csv"
         self.history_file_json_error = f"/homeassistant/www/{self.main_sensor_arg}_errors.txt"
+        self.history_file_json = f"/homeassistant/www/{self.main_sensor_arg}_history.json"
         self.ERROR_NAME = False
         for city in self.city_names_self:
             # Find the original name corresponding to the standardized city
@@ -93,7 +94,10 @@ class Red_Alerts_Israel(Hass):
                     print(f"-------\n{datetime.now().isoformat()} - - ATTENTION! '{original_name}' is invalid name.\nThe secondary binary sensor is unable to operate because “{original_name}” is not recognized in any region.\nTo resolve this issue, please correct the “city_names” entry in the apps.yaml file.\nCity names can be found here: https://github.com/idodov/RedAlert/blob/main/cities_name.md\n-------\n", file=f6)
                 self.ERROR_NAME = original_name
 
-        first_alert_data = self.get_first_alert_data()
+        first_alert_data = self.get_from_json()
+        if not first_alert_data:
+            first_alert_data = self.get_first_alert_data()
+
         if first_alert_data:
             last_data = self.check_backup_data(first_alert_data)
         else:
@@ -145,6 +149,14 @@ class Red_Alerts_Israel(Hass):
                 if no_json:
                     print("ID, DAY, DATE, TIME, TITLE, COUNT, AREAS, CITIES, DESC", file=f3)
         return
+
+    def get_from_json(self):
+        try:
+            with open(self.history_file_json, "r", encoding='utf-8-sig') as json_file:
+                data = json.load(json_file)
+                return data
+        except:
+            return False
 
     def get_first_alert_data(self):
         history_url = "https://www.oref.org.il/warningMessages/alert/History/AlertsHistory.json"
@@ -214,22 +226,51 @@ class Red_Alerts_Israel(Hass):
             self.log(f"Error: {e}\n{traceback.format_exc()}")
         return
 
+    def is_iso_format(self, last_time):
+        try:
+            parsed_time = datetime.fromisoformat(last_time)
+            return parsed_time.strftime("%Y-%m-%dT%H:%M:%S.%f")
+        except ValueError:
+            try:
+                parsed_time = datetime.strptime(last_time, "%Y-%m-%d %H:%M:%S")
+                return parsed_time.strftime("%Y-%m-%dT%H:%M:%S.%f")
+            except ValueError:
+                return datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
+
     def check_backup_data(self, data):
         # Get all the data from the json value
-        areas, full_message, full_message_wa, full_message_tg = [], [], [], []
         category = int(data.get('cat', 0))
         alert_title = data.get('title', 'לא היו התרעות ביממה האחרונה')
         city_names = data.get('data', [])
-        last_time = data.get('alertDate')
-        areas_c = 1 if city_names else 0
-        icon_alert, icon_emoji = icons_and_emojis[category]
-
-        if last_time:
-            parsed_time = datetime.strptime(last_time, "%Y-%m-%d %H:%M:%S")
-            last_time = parsed_time.strftime("%Y-%m-%dT%H:%M:%S.%f")
-        else:
-            last_time =datetime.now().isoformat()
+        last_time = data.get('alertDate', datetime.now().isoformat())
         
+        icon_alert, icon_emoji = icons_and_emojis[category]
+        #areas_alert = "ישראל"
+        if isinstance(city_names, str):
+            city_names = [city_names]
+        areas_c = len(city_names)
+        alerts_data = ', '.join(sorted(city_names))
+
+        areas = []
+        original_names = set(city_names)
+        standardized_names = set([re.sub(r'[\-\,\(\)\s\'\’\"]+', '', name).strip() for name in city_names])
+        
+        # Generating attribues for the text messages
+        data_count = len(standardized_names) if standardized_names else 0
+        for area, cities in self.lamas['areas'].items():
+            intersecting_cities = cities.intersection(standardized_names)
+            if intersecting_cities:
+                areas.append(area)
+
+        if len(areas) > 1:
+            areas.sort()
+            all_but_last = ", ".join(areas[:-1])
+            areas_alert = f"{all_but_last} ו{areas[-1]}"
+        else:
+            areas_alert = ", ".join(areas)
+        
+        last_time = self.is_iso_format(last_time)
+                
         # Update sensor attribues
         sensor_attributes={
             "count":0,
@@ -238,8 +279,9 @@ class Red_Alerts_Israel(Hass):
             "title": "אין התרעות",
             "desc": "שגרה",
             "areas": "",
+            "cities": "",
             "data": "",
-            "alert": "",
+            "alert": " ",
             "alert_alt": "",
             "alert_txt": "",
             "alert_wa": "",
@@ -248,12 +290,13 @@ class Red_Alerts_Israel(Hass):
             "duration": 0,
             "icon": "mdi:alert",
             "emoji":  "⚠️",
-            "last_changed": datetime.now().isoformat(),
+            "last_changed": last_time,
             "prev_cat": category,
             "prev_title": alert_title,
             "prev_desc": "היכנסו למרחב המוגן",
-            "prev_areas": "ישראל",
-            "prev_data": city_names,
+            "prev_areas": areas_alert,
+            "prev_cities": city_names,
+            "prev_data": alerts_data,
             "prev_data_count": areas_c,
             "prev_duration": 0,
             "prev_last_changed": last_time,}
@@ -310,6 +353,7 @@ class Red_Alerts_Israel(Hass):
             "title": alert_title,
             "desc": descr,
             "areas": areas_alert,
+            "cities": city_names,
             "data": alerts_data,
             "data_count": data_count,
             "duration": duration,
@@ -320,6 +364,7 @@ class Red_Alerts_Israel(Hass):
             "prev_title": alert_title,
             "prev_desc": descr,
             "prev_areas": areas_alert,
+            "prev_cities": city_names,
             "prev_data": alerts_data,
             "prev_data_count": data_count,
             "prev_duration": duration,
@@ -341,6 +386,10 @@ class Red_Alerts_Israel(Hass):
             self.set_state(self.main_sensor, state="on", attributes=sensor_attributes)
             self.set_state(self.main_text, state=f"{text_status}", attributes={"icon": f"{icon_alert}"},)
 
+            with open(self.history_file_json, "w", encoding='utf-8-sig') as json_file:
+                data.update({'alertDate': f'{datetime.now().isoformat()}'})
+                json.dump(data, json_file, indent=2)
+            
             if self.save_2_file:
                 now = datetime.now()
                 day_name_hebrew = day_names[now.strftime('%A')]
