@@ -137,6 +137,174 @@ cards:
     state_color: true
 ```
 
+**24 Hours History**
+![red-alert-history-data](https://github.com/user-attachments/assets/1b3861c0-4953-47d9-ab28-a281260d8c4f)
+> [!TIP]
+> You can modify the card by choosing to show or not to show the history and more information data.
+> `{% set show_history = False %}` False is to not show the 24 hours alert history
+> `{% set show_info = False %}` - False is to not show the more info data
+```yaml
+type: markdown
+content: >-
+  {% set show_history = True %}
+
+  {% set show_info = True %} 
+
+  {% set alerts = state_attr('binary_sensor.red_alert',
+  'last_24h_alerts_group') %}
+
+  {% set oref = states('binary_sensor.red_alert') %}
+
+  <table width=100%><tr><td align=center>
+
+  {% if oref == 'on' %}
+
+  # <font color = red>{{ state_attr('binary_sensor.red_alert', 'prev_title')
+  }}</font> {{ state_attr('binary_sensor.red_alert', 'emoji') }}
+
+  </td></tr>
+
+  <tr><td align=center><big><big>
+
+  <b>{{ state_attr('binary_sensor.red_alert', 'alert_txt') }}</b></big></big>
+
+  {% else %}
+
+  ## <font color=green>אין התרעות</font> ✅{% endif %}
+
+  </td></tr></table>
+
+  {% set current_date = now().date() %}
+
+  {% if state_attr('binary_sensor.red_alert', 'prev_last_changed') |
+  regex_match("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\d{2}:\d{2}.\d+$") %}
+
+  {% set last_changed_timestamp = state_attr('binary_sensor.red_alert',
+  'prev_last_changed') | as_timestamp %}
+
+  {% if current_date == (last_changed_timestamp | timestamp_custom('%Y-%m-%d',
+  true) | as_datetime).date() %}
+
+  {% set current_timestamp = now().timestamp() %}
+
+  {% set time_difference = current_timestamp - last_changed_timestamp %}
+
+  <center>התרעה אחרונה נשלחה {% if time_difference < 3600 %} לפני {{
+  (time_difference / 60) | int }} דקות
+
+  {% elif time_difference < 86400 %}היום בשעה {{ last_changed_timestamp |
+  timestamp_custom('%H:%M', true) }}
+
+  {% else %}בתאריך {{ last_changed_timestamp | timestamp_custom('%d/%m/%Y',
+  true) }}, בשעה {{ last_changed_timestamp | timestamp_custom('%H:%M', true) }}
+
+  {% endif %}{% endif %}{% endif %}
+
+  </ha-alert>
+
+  {% if alerts and show_history %}
+
+  {% if show_info %}
+
+  <hr>
+
+  <table width=100%>
+
+  <tr><td align=center>
+
+  {{ state_attr('binary_sensor.red_alert', 'cities_past_24h') | length }}
+  :ערים</td>
+
+  <td align=center> 
+
+  {{ state_attr('binary_sensor.red_alert', 'last_24h_alerts') | length }}
+  :התרעות</td></tr>
+
+  <tr>
+
+  <td colspan=2 align=center>
+
+  במהלך 24 שעות אחרונות 
+
+  </td>
+
+  </tr>
+
+  <tr><td colspan=2><hr></td></tr>
+
+  </table>
+
+  {% endif %}
+
+  <table width=100% align=center>
+
+  {% for alert_type, areas in alerts.items() %}
+
+  <tr>
+
+  <td></td>
+
+  </tr>
+
+  <tr>
+
+  <td colspan=6 align=center><h2><font color=blue>{{ alert_type }}</font></h2>
+
+  <hr></td>
+
+  </tr>
+
+  {% for area, cities in areas.items() %}
+
+  <tr>
+
+  <td></td>
+
+  </tr>
+
+  <tr>
+
+  <td colspan=6 align=center><big><b>{{ area }}</b></big></td></tr>
+
+  <tr>
+
+  <td colspan=6></td>
+
+  </tr>
+
+  {% for city_pair in cities|batch(2) %}
+
+  <tr><td align=right valign=top>{{ city_pair[0].city }}</td>
+
+  <td valign=top> - </td><td valign=top>{{ city_pair[0].time[11:16] }}</td>{% if
+  city_pair|length > 1 %} 
+
+  <td align=right valign=top>{{ city_pair[1].city }}</td>
+
+  <td valign=top> - </td><td valign=top>{{ city_pair[1].time[11:16] }}{% else
+  %}</td>{% endif %}</tr>
+
+  {% endfor %}
+
+  <tr>
+
+  <td colspan=6>&nbsp;</td>
+
+  </tr>
+
+  {% endfor %}
+
+  {% endfor %}
+
+  </table>
+
+  {% else %}
+
+  {% endif %}
+
+```
+
+
 > [!TIP]
 > Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run.
 > 
@@ -161,15 +329,22 @@ You can use any attribue from the sensor. For example, to show the title on love
 ```{{ state_attr('binary_sensor.red_alert', 'title') }}```
 | Attribute name | Means | Example |
 | ----- | ----- | ----- |
+| `active_now' | `on` when there is a live alert, `off` when there is no live alerts | `off` |
 | `count` | Counts the number of times the script has run since the last restart of Home Assistant. By monitoring this data, you can determine if and when the script is not running. | `12345` |
 | `cat` | Category number. can be from 1 to 13 | `1` |
 | `title` | Attack type in text | `ירי רקטות וטילים` |
-| `data` | List of cities | `תל אביב - מרכז העיר` |
-| `areas` | List of areas | `גוש דן` |
+| `data` | List of cities as string | `תל אביב - מרכז העיר` |
+| `cities` | List of cities that are attacked | `- קריית שמונה` |
+| `alerts_count` | Number of live alerts | `4` |
+| `my_cities` | The defined user cities | `- תל אביב - מרכז העיר` |
+| `areas` | List of areas as string | `גוש דן` |
 | `desc` | Explain what to do |  `היכנסו למרחב המוגן ושהו בו 10 דקות` |
 | `duration` | How many seconds to be in the safe room | `600` |
 | `id` | Id of the alert | `133413399870000000` |
 | `data_count` | Number of cities that are attacked | `1` |
+| `cities_past_24h` | List of cities that had attacked in the past 24 hours | `- שלומי` |
+| `last_24h_alerts` | List of all alerts in the past 24 hours | `title`, `city`, `area`, `time` |
+| `last_24h_alerts_group` | List of all 24 hours alerts grouped by title and area | `titile`, `area`, `city`, `time` |
 | `emoji` | Icon for type of attack | `🚀` |
 | `prev_*` | Last data from each attribue | Stores the most recent information when the sensor was active |
 | `alert` | One line full text  | `ירי רקטות וטילים ב־קו העימות - בצת, שלומי` |
