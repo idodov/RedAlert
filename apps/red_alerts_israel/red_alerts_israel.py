@@ -315,7 +315,7 @@ class Red_Alerts_Israel(Hass):
                 'data': list(self.city_names_self), 'desc': 'אין צורך לשהות במרחב מוגן 10 דקות'
             }
             self.check_data(data)
-            self.set_state(self.city_sensor, state="off", attributes=self.def_attributes)
+            #self.set_state(self.city_sensor, state="off", attributes=self.def_attributes)
             self.set_state(self.activate_alert, state="off")
 
         if time.time() - self.test_time >= self.timer:
