@@ -409,7 +409,7 @@ The script also creates two GeoJSON files automatically, which store the alertâ€
 3. Adjust the radius to cover the entire country area.
    
 ![{28E29F42-3F7F-4625-859B-587381F81941}](https://github.com/user-attachments/assets/23f2f200-28a9-49c1-82c7-79a00343f23c)
-> [!INFO]
+> [!NOTE]
 > If the GeoJSON integration can't access the GeoJSON file, open the `configuration.yaml` file and add the necessary approval, like this:
 > ```yaml
 > homeassistant:
