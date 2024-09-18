@@ -8,7 +8,8 @@ binary_sensor.red_alert_city: This sensor will be on when there is an alarm in a
 text_input.red_alert: This sensor will store all historical data for viewing in the Home Assistant logbook.
 input_boolean.red_alert: This sensor will activate a fake alert design to test automations.
 
-Additionally, the script can save the history of all alerts in dedicated TXT and CSV files, which will be accessible from the WWW folder inside the Home Assistant directory.
+The script automatically generates two GeoJSON files that store the alert's geolocation data (accessible from the WWW folder inside the Home Assistant directory), which can be displayed on the Home Assistant map.
+Additionally, the script can save the history of all alerts in dedicated TXT and CSV files, which will also be accessible from the WWW folder.
 
 The sensor attributes contain several message formats for display or sending notifications. You also have the flexibility to display or use any of the attributes of the sensor to create more sub-sensors from the main binary_sensor.red_alert.
 
@@ -30,7 +31,6 @@ red_alerts_israel:
     - שלומי
     - כיסופים
     - שדרות, איבים, ניר עם
-
 """
 
 import requests
@@ -94,12 +94,10 @@ class Red_Alerts_Israel(Hass):
         self.history_file_csv = f"/homeassistant/www/{self.sensor_name}_history.csv"
         self.history_file_json = f"/homeassistant/www/{self.sensor_name}_history.json"
         self.history_file_json_error = f"/homeassistant/www/{self.sensor_name}_error.txt"
-
+        self.past_2min_file = f"/homeassistant/www/{self.sensor_name}_latest.geojson"
+        self.past_24h_file = f"/homeassistant/www/{self.sensor_name}_24h.geojson"
 
         self.lamas = self.load_lamas_data()
-        #self.city_names_self = set([
-        #    self.standardize_name(name) for name in self.city_names
-        #])
         if not self.lamas:
             self.log("Failed to load Lamas data.")
             return
@@ -124,6 +122,8 @@ class Red_Alerts_Israel(Hass):
         self.load_initial_alert_data()
         self.load_alert_history()
         self.create_csv()
+        self.save_geojson_files()
+
         self.run_every(self.poll_alerts, datetime.now(), self.interval, timeout=30)
 
     def standardize_name(self, name):
@@ -135,11 +135,11 @@ class Red_Alerts_Israel(Hass):
                 print("ID, DAY, DATE, TIME, TITLE, COUNT, AREAS, CITIES, DESC, ALERTS", file=csv_file)
 
     def load_lamas_data(self):
-        file_path = '/homeassistant/appdaemon/apps/RedAlert/lamas.json' if self.hacs else '/homeassistant/addon_configs/a0d7b954_appdaemon/apps/RedAlert/lamas.json'
-        github_url = "https://raw.githubusercontent.com/idodov/RedAlert/main/apps/red_alerts_israel/lamas.json"
+        file_path = '/homeassistant/appdaemon/apps/RedAlert/lamas_data.json' if self.hacs else '/homeassistant/addon_configs/a0d7b954_appdaemon/apps/RedAlert/lamas_data.json'
+        github_url = "https://raw.githubusercontent.com/idodov/RedAlert/main/apps/red_alerts_israel/lamas_data.json"
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, 'r', encoding='utf-8-sig') as file:
                 lamas_data = json.load(file)
             self.log("Lamas data loaded from local file")
 
@@ -159,16 +159,28 @@ class Red_Alerts_Israel(Hass):
             self.log("Unexpected JSON structure in Lamas data")
             return None
 
+        # Process the areas and cities
         for area, cities in lamas_data['areas'].items():
             if isinstance(cities, dict):
-                standardized_cities = set([
-                    self.standardize_name(city) for city in cities.keys()
-                ])
+                standardized_cities = {}
+                for city, details in cities.items():
+                    standardized_city_name = self.standardize_name(city)
+
+                    # Check for lat and long in the details and add them if present
+                    if isinstance(details, dict) and 'lat' in details and 'long' in details:
+                        standardized_cities[standardized_city_name] = {
+                            "lat": details["lat"],
+                            "long": details["long"]
+                        }
+                    else:
+                        # If no lat/long, just add an empty entry
+                        standardized_cities[standardized_city_name] = {}
+
+                lamas_data['areas'][area] = standardized_cities
+
             else:
                 self.log(f"Unexpected cities structure in area {area}: {cities}")
-                standardized_cities = set()
-
-            lamas_data['areas'][area] = standardized_cities
+                lamas_data['areas'][area] = {}
 
         return lamas_data
 
@@ -177,7 +189,7 @@ class Red_Alerts_Israel(Hass):
             response = requests.get(url)
             response.raise_for_status()
             lamas_data = response.json()
-            with open(file_path, 'w', encoding='utf-8') as file:
+            with open(file_path, 'w', encoding='utf-8-sig') as file:
                 json.dump(lamas_data, file, ensure_ascii=False, indent=2)
             self.log(f"Lamas data downloaded from GitHub and saved to {file_path}")
             return lamas_data
@@ -432,7 +444,6 @@ class Red_Alerts_Israel(Hass):
             "cities_past_24h": self.cities_past_24h,
             "last_24h_alerts": self.last_24_alerts,
             "last_24h_alerts_group": self.restructure_alerts(self.last_24_alerts)
-
         }
 
         if len(text_status) > 255:
@@ -458,7 +469,7 @@ class Red_Alerts_Israel(Hass):
             
             self.set_state(self.main_sensor, state="on", attributes=sensor_attributes)
             self.set_state(self.main_text, state=text_status, attributes={"icon": icon_alert})
-
+            self.save_geojson_files()
             with open(self.history_file_json, "w", encoding='utf-8-sig') as json_file:
                 data.update({'alertDate': datetime.now().isoformat()})
                 data["data"] = self.cities_past_2min
@@ -546,3 +557,105 @@ class Red_Alerts_Israel(Hass):
             new_structure[title][area].append({'city': city, 'time': time})
     
         return new_structure
+    
+    def create_geojson(self, attributes, file_path, duration="latest"):
+        geojson = {
+            "type": "FeatureCollection",
+            "features": []
+        }
+
+        sensor_attributes = attributes.get("attributes", {})
+
+        if duration == "latest":
+            cities_data = sensor_attributes.get("cities_past_2min", [])
+        else:
+            cities_data = sensor_attributes.get("cities_past_24h", [])
+            last_alerts = sensor_attributes.get("last_24h_alerts", [])
+
+        if duration == "latest":
+            coordinates = []
+            city_names = []
+
+            added_cities = set()
+
+            for city_name in cities_data:
+                standardized_city_name = self.standardize_name(city_name)
+
+                if standardized_city_name in added_cities:
+                    continue
+
+                for area, cities in self.lamas['areas'].items():
+                    if standardized_city_name in cities:
+                        lat = cities[standardized_city_name].get("lat")
+                        lon = cities[standardized_city_name].get("long")
+
+                        if lat and lon:
+                            coordinates.append([lon, lat])
+                            city_names.append(city_name)
+
+                            added_cities.add(standardized_city_name)
+
+            if coordinates:
+                feature = {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "MultiPoint",
+                        "coordinates": coordinates
+                    },
+                    "properties": {
+                        "cities": city_names,
+                        "name": "⚠️"
+                    }
+                }
+                geojson["features"].append(feature)
+
+        else:
+            last_alerts = sensor_attributes.get("last_24h_alerts", [])
+            added_cities = set()
+
+            for alert in last_alerts:
+                city_name = alert['city']
+                area_name = alert['area']
+                alert_type = alert.get('cat', 1)  
+                alert_title = alert['title']
+
+                standardized_city_name = self.standardize_name(city_name)
+
+                if standardized_city_name in added_cities:
+                    continue
+
+                for area, cities in self.lamas['areas'].items():
+                    if standardized_city_name in cities:
+                        lat = cities[standardized_city_name].get("lat")
+                        lon = cities[standardized_city_name].get("long")
+
+                        if lat and lon:
+                            icon, emoji = self.icons_and_emojis.get(alert_type, ("mdi:alert", "❗"))
+
+                            feature = {
+                                "type": "Feature",
+                                "geometry": {
+                                    "type": "Point",
+                                    "coordinates": [lon, lat]
+                                },
+                                "properties": {
+                                    "name": city_name,
+                                    "area": area_name,
+                                    "icon": "bubble",
+                                    "label": emoji,
+                                    "description": alert_title
+                                }
+                            }
+                            geojson["features"].append(feature)
+
+                            added_cities.add(standardized_city_name)
+
+        with open(file_path, 'w', encoding='utf-8-sig') as f:
+            json.dump(geojson, f, ensure_ascii=False, indent=2)
+
+        self.log(f"GeoJSON {duration} alerts file saved to {file_path}")
+
+    def save_geojson_files(self):
+        attributes = self.get_state(self.main_sensor, attribute='all')
+        self.create_geojson(attributes, self.past_2min_file, duration="latest")
+        self.create_geojson(attributes, self.past_24h_file, duration="24h")
