@@ -12,6 +12,8 @@ ____
 * `binary_sensor.red_alert_city`: Similar to the above but only triggers if the specified city is targeted by the alarm.
 * `input_text.red_alert`: Logs the most recent alert data, serving as a historical log.
 * `input_boolean.red_alert_test`: Simulates a dummy alert to verify automation setups.
+
+The script automatically generates two GeoJSON files that store the alert’s geolocation data, which can be displayed on the Home Assistant map.
 # Installation Instructions
 > [!TIP]
 > To ensure the history of sensors is maintained after a restart in Home Assistant, it’s advisable to establish input text and boolean helpers. It’s best to do this prior to installation. Here’s how you can proceed:
@@ -138,6 +140,7 @@ cards:
 ```
 
 **24 Hours History**
+
 ![red-alert-history-data](https://github.com/user-attachments/assets/1b3861c0-4953-47d9-ab28-a281260d8c4f)
 > [!TIP]
 > You can modify the card by choosing to show or not to show the history and more information data.
@@ -308,7 +311,7 @@ content: >-
 > [!TIP]
 > Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run.
 > 
-> You can also create a special markdown card to track the sensor:
+> You can also create a specialHis markdown card to track the sensor:
 > 
 > ![runs](https://github.com/idodov/RedAlert/assets/19820046/ba01b903-7cd8-4549-9859-8081d8f11712)
 > ```yaml
@@ -395,6 +398,19 @@ alert_tg: |-
   __היכנסו למרחב המוגן ושהו בו 10 דקות__
 ```
 # Usage *Red Alert* for Home Assistant
+## Map
+![{FF1A0EEA-8270-4D29-ACBC-3D0EEF065EE3}](https://github.com/user-attachments/assets/6834a827-0186-4b60-921c-f5918dc3bd1b)
+
+The script also creates two GeoJSON files automatically, which store the alert’s geolocation data and can be displayed on the Home Assistant map. Both files are located in the `\\homeassistant\config\www` directory. The `red_alert_24h.geojson` file stores data for alerts from the last 24 hours, and the `red_alert_latest.geojson` file stores the most recent alert data.
+
+**To display the data on the Home Assistant map:**
+1. Install the GeoJSON integration directly from the Home Assistant integration page.
+2. Add the GeoJSON URL: `http://homeassistant.local:8123/local/red_alert_24h.geojson`.
+3. Adjust the radius to cover the entire country area.
+   
+![{28E29F42-3F7F-4625-859B-587381F81941}](https://github.com/user-attachments/assets/23f2f200-28a9-49c1-82c7-79a00343f23c)
+
+
 ## History File
 The script stores the sensor data in a text file named `red_alert_history.txt` and `red_alert_history.csv`, both located in the `\\homeassistant\config\www` directory. Each time an alert (including test alerts) is triggered, the files gets updated. The dedicated CSV file can be opened in any spreadsheet application, such as Excel or Google Sheets.
  You can directly access these files from your browser using the provided URL: [ http://homeassistant.local:8123/local/red_alert_history.txt](http://homeassistant.local:8123/local/red_alert_history.txt).
