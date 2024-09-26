@@ -30,9 +30,7 @@ red_alerts_israel:
     - אזור תעשייה אכזיב מילואות
     - שלומי
     - כיסופים
-    - שדרות, איבים, ניר עם
 """
-
 import requests
 import re
 import time
@@ -50,8 +48,8 @@ class Red_Alerts_Israel(Hass):
 
     def initialize(self):
         self.url = "https://www.oref.org.il/warningMessages/alert/alerts.json"
-        self.history_url = "https://www.oref.org.il/warningMessages/alert/History/AlertsHistory.json"
-        self.headers = { 
+        self.history_url = "https://alerts-history.oref.org.il//Shared/Ajax/GetAlarmsHistory.aspx?lang=he&mode=1"
+        self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
             'Referer': 'https://www.oref.org.il/',
             'X-Requested-With': 'XMLHttpRequest',
@@ -65,8 +63,8 @@ class Red_Alerts_Israel(Hass):
             12: ("mdi:alert", "❗"), 13: ("mdi:run-fast", "👹")
         }
         self.day_names = {
-            'Sunday': 'יום ראשון', 'Monday': 'יום שני', 'Tuesday': 'יום שלישי', 
-            'Wednesday': 'יום רביעי', 'Thursday': 'יום חמישי', 'Friday': 'יום שישי', 
+            'Sunday': 'יום ראשון', 'Monday': 'יום שני', 'Tuesday': 'יום שלישי',
+            'Wednesday': 'יום רביעי', 'Thursday': 'יום חמישי', 'Friday': 'יום שישי',
             'Saturday': 'יום שבת'
         }
         self.false_data_json = {
@@ -83,7 +81,8 @@ class Red_Alerts_Israel(Hass):
         self.def_attributes = {
             "active_now": "off", "id": 0, "cat": 0, "title": "אין התרעות", "desc": "", "data": "", "areas": "",
             "data_count": 0, "duration": 0, "icon": "mdi:alert", "emoji": "⚠️", "cities": [],
-            "alerts_count": 0, "my_cities": list(set(self.city_names))
+            "alerts_count": 0, "my_cities": list(set(self.city_names)),
+            "cities_past_2min": []  # Initialize cities_past_2min
         }
 
         self.main_sensor = f"binary_sensor.{self.sensor_name}"
@@ -257,27 +256,25 @@ class Red_Alerts_Israel(Hass):
             now = datetime.now()
             twenty_four_hours_ago = now - timedelta(hours=24)
             self.cities_past_24h = []
-            self.cities_past_24h = [
-                entry['data'] for entry in history_data 
-                if datetime.strptime(entry['alertDate'], '%Y-%m-%d %H:%M:%S') >= twenty_four_hours_ago
-            ]
+            self.last_24_alerts = []
+
+            for entry in history_data:
+                alert_date = datetime.strptime(entry['alertDate'], '%Y-%m-%dT%H:%M:%S')
+                if alert_date >= twenty_four_hours_ago:
+                    self.cities_past_24h.append(entry['data'])
+                    self.last_24_alerts.append({
+                        'title': entry['category_desc'],
+                        'city': entry['data'],
+                        'area': next((area for area, cities in self.lamas['areas'].items() if self.standardize_name(entry['data']) in cities), "ישראל"),
+                        'time': alert_date
+                    })
+
             self.cities_past_24h = list(set(self.cities_past_24h))  # Remove duplicates
-
-            self.last_24_alerts = [
-            {
-                'title': entry['title'],
-                'city': entry['data'],
-                'area': next((area for area, cities in self.lamas['areas'].items() if self.standardize_name(entry['data']) in cities), "ישראל"),
-                'time': datetime.strptime(entry['alertDate'], '%Y-%m-%d %H:%M:%S')
-            }
-            for entry in history_data
-                if datetime.strptime(entry['alertDate'], '%Y-%m-%d %H:%M:%S') >= twenty_four_hours_ago
-            ]
-
             self.set_state(self.main_sensor, attributes={
                 "cities_past_24h": self.cities_past_24h,
                 "last_24h_alerts": self.last_24_alerts,
-                "last_24h_alerts_group": self.restructure_alerts(self.last_24_alerts)
+                "last_24h_alerts_group": self.restructure_alerts(self.last_24_alerts),
+                "cities_past_2min": self.cities_past_2min
             })
 
         except requests.exceptions.RequestException as e:
@@ -306,11 +303,11 @@ class Red_Alerts_Israel(Hass):
             self.set_state(self.main_sensor, attributes={"count": self.c_value})
 
         except requests.exceptions.RequestException as e:
-            self.log(f"Error polling alerts: {e}")
+            self.log(f"Error polling alerts: {e}\n{traceback.format_exc()}")
             self.reset_sensors_if_needed()
             
         except json.JSONDecodeError as e:
-            self.log("Error decoding JSON response.")
+            self.log("Error decoding JSON response.\n{traceback.format_exc()}")
             self.reset_sensors_if_needed()
 
         except Exception as e:
@@ -345,11 +342,12 @@ class Red_Alerts_Israel(Hass):
                 self.save_alert_data_to_csv()
             self.last_alert_time = None
             self.prev_alert_attributes = None
-            self.cities_past_2min = []
+            self.cities_past_2min = [] 
             self.last_title = False
             self.massive = 0
             self.no_active_alerts = 0
             self.load_alert_history()
+            self.update_cities_past_2min()
 
     def check_backup_data(self, data):
         category = int(data.get('cat', 0))
@@ -443,7 +441,8 @@ class Red_Alerts_Israel(Hass):
             "prev_last_changed": datetime.now().isoformat(),
             "cities_past_24h": self.cities_past_24h,
             "last_24h_alerts": self.last_24_alerts,
-            "last_24h_alerts_group": self.restructure_alerts(self.last_24_alerts)
+            "last_24h_alerts_group": self.restructure_alerts(self.last_24_alerts),
+            "cities_past_2min": self.cities_past_2min
         }
 
         if len(text_status) > 255:
@@ -495,7 +494,6 @@ class Red_Alerts_Israel(Hass):
         day_name_hebrew = self.day_names[now.strftime('%A')]
         date_time_str = f"\nהתרעה נשלחה ב{day_name_hebrew} ה-{now.strftime('%d/%m/%Y')} בשעה {formatted_new_time}"
 
-        # Prepare CSV data
         csv_data = [
             int(alert_data['id'] / 10000000),
             day_name_hebrew,
@@ -509,7 +507,6 @@ class Red_Alerts_Israel(Hass):
             self.massive
         ]
 
-        # Use StringIO to write CSV data into a string
         output = StringIO()
         csv_writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
         csv_writer.writerow(csv_data)
@@ -567,48 +564,30 @@ class Red_Alerts_Israel(Hass):
         sensor_attributes = attributes.get("attributes", {})
 
         if duration == "latest":
+            self.update_cities_past_2min()
             cities_data = sensor_attributes.get("cities_past_2min", [])
-        else:
-            cities_data = sensor_attributes.get("cities_past_24h", [])
-            last_alerts = sensor_attributes.get("last_24h_alerts", [])
-
-        if duration == "latest":
-            coordinates = []
-            city_names = []
-
-            added_cities = set()
 
             for city_name in cities_data:
                 standardized_city_name = self.standardize_name(city_name)
-
-                if standardized_city_name in added_cities:
-                    continue
-
                 for area, cities in self.lamas['areas'].items():
                     if standardized_city_name in cities:
                         lat = cities[standardized_city_name].get("lat")
                         lon = cities[standardized_city_name].get("long")
 
                         if lat and lon:
-                            coordinates.append([lon, lat])
-                            city_names.append(city_name)
-
-                            added_cities.add(standardized_city_name)
-
-            if coordinates:
-                feature = {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "MultiPoint",
-                        "coordinates": coordinates
-                    },
-                    "properties": {
-                        "cities": city_names,
-                        "name": "⚠️"
-                    }
-                }
-                geojson["features"].append(feature)
-
+                            geojson["features"].append({
+                                "type": "Feature",
+                                "geometry": {
+                                    "type": "Point",
+                                    "coordinates": [lon, lat]
+                                },
+                                "properties": {
+                                    "name": city_name,
+                                    "icon": "bubble",
+                                    "label": "⚠️"
+                                }
+                            })
+                            break
         else:
             last_alerts = sensor_attributes.get("last_24h_alerts", [])
             added_cities = set()
@@ -616,7 +595,7 @@ class Red_Alerts_Israel(Hass):
             for alert in last_alerts:
                 city_name = alert['city']
                 area_name = alert['area']
-                alert_type = alert.get('cat', 1)  
+                alert_type = alert.get('cat', 1)
                 alert_title = alert['title']
 
                 standardized_city_name = self.standardize_name(city_name)
@@ -632,7 +611,7 @@ class Red_Alerts_Israel(Hass):
                         if lat and lon:
                             icon, emoji = self.icons_and_emojis.get(alert_type, ("mdi:alert", "❗"))
 
-                            feature = {
+                            geojson["features"].append({
                                 "type": "Feature",
                                 "geometry": {
                                     "type": "Point",
@@ -645,17 +624,25 @@ class Red_Alerts_Israel(Hass):
                                     "label": emoji,
                                     "description": alert_title
                                 }
-                            }
-                            geojson["features"].append(feature)
-
+                            })
                             added_cities.add(standardized_city_name)
+                            break
 
-        with open(file_path, 'w', encoding='utf-8-sig') as f:
-            json.dump(geojson, f, ensure_ascii=False, indent=2)
-
-        self.log(f"GeoJSON {duration} alerts file saved to {file_path}")
+        if len(geojson["features"]) > 0:
+            with open(file_path, 'w', encoding='utf-8-sig') as f:
+                json.dump(geojson, f, ensure_ascii=False, indent=2)
+            self.log(f"GeoJSON {duration} alerts file saved to {file_path}")
 
     def save_geojson_files(self):
         attributes = self.get_state(self.main_sensor, attribute='all')
         self.create_geojson(attributes, self.past_2min_file, duration="latest")
         self.create_geojson(attributes, self.past_24h_file, duration="24h")
+
+    def update_cities_past_2min(self):
+        if self.last_24_alerts:
+            two_hours_ago = self.last_24_alerts[0]['time'] - timedelta(hours=2)
+            self.cities_past_2min = [
+                alert['city'] for alert in self.last_24_alerts if alert['time'] >= two_hours_ago
+            ]
+            self.cities_past_2min = list(set(self.cities_past_2min))
+            self.set_state(self.main_sensor, attributes={"cities_past_2min": self.cities_past_2min})
