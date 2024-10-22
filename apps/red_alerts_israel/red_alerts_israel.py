@@ -22,11 +22,12 @@ Configuration:
 red_alerts_israel:
   module: red_alerts_israel
   class: Red_Alerts_Israel
-  interval: 2 
-  timer: 120 
-  save_2_file: True 
-  sensor_name: "red_alert" 
-  city_names: 
+  interval: 5
+  timer: 120
+  sensor_name: "red_alert"
+  save_2_file: True
+  hours_to_show: 1
+  city_names:
     - אזור תעשייה אכזיב מילואות
     - שלומי
     - כיסופים
@@ -44,6 +45,8 @@ import csv
 from datetime import datetime, timedelta
 from io import StringIO
 from appdaemon.plugins.hass.hassapi import Hass
+
+script_directory = os.path.dirname(os.path.realpath(__file__))
 
 class Red_Alerts_Israel(Hass):
 
@@ -75,9 +78,10 @@ class Red_Alerts_Israel(Hass):
         self.interval = self.args.get("interval", 2)
         self.timer = self.args.get("timer", 120)
         self.save_2_file = self.args.get("save_2_file", True)
-        self.hacs = self.args.get("hacs", True)
+        #self.hacs = self.args.get("hacs", True)
         self.sensor_name = self.args.get("sensor_name", "red_alert")
         self.city_names = self.args.get("city_names", [])
+        self.hours_to_show = self.args.get("hours_to_show", 4)
 
         self.def_attributes = {
             "active_now": "off", "id": 0, "cat": 0, "title": "אין התרעות", "desc": "", "data": "", "areas": "",
@@ -86,6 +90,7 @@ class Red_Alerts_Israel(Hass):
         }
 
         self.main_sensor = f"binary_sensor.{self.sensor_name}"
+        self.main_sensor_history = f"sensor.{self.sensor_name}_daily_history"
         self.city_sensor = f"binary_sensor.{self.sensor_name}_city"
         self.main_text = f"input_text.{self.sensor_name}"
         self.activate_alert = f"input_boolean.{self.sensor_name}_test"
@@ -134,7 +139,8 @@ class Red_Alerts_Israel(Hass):
                 print("ID, DAY, DATE, TIME, TITLE, COUNT, AREAS, CITIES, DESC, ALERTS", file=csv_file)
 
     def load_lamas_data(self):
-        file_path = '/homeassistant/appdaemon/apps/RedAlert/lamas_data.json' if self.hacs else '/homeassistant/addon_configs/a0d7b954_appdaemon/apps/RedAlert/lamas_data.json'
+        #file_path = '/homeassistant/appdaemon/apps/RedAlert/lamas_data.json' if self.hacs else '/homeassistant/addon_configs/a0d7b954_appdaemon/apps/RedAlert/lamas_data.json'
+        file_path = f"{script_directory}/lamas_data.json"
         github_url = "https://raw.githubusercontent.com/idodov/RedAlert/main/apps/red_alerts_israel/lamas_data.json"
 
         try:
@@ -254,7 +260,7 @@ class Red_Alerts_Israel(Hass):
             history_data = response.json()
 
             now = datetime.now()
-            twenty_four_hours_ago = now - timedelta(hours=24)
+            twenty_four_hours_ago = now - timedelta(hours=self.hours_to_show) 
             self.cities_past_24h = []
             self.cities_past_24h = [
                 entry['data'] for entry in history_data 
@@ -445,8 +451,14 @@ class Red_Alerts_Israel(Hass):
             "last_24h_alerts_group": self.restructure_alerts(self.last_24_alerts)
         }
 
+        #if len(text_status) > 255:
+        #    text_status = f"{areas_alert} - {', '.join(city_names)}" if alert_title in text_status else f"{', '.join(city_names)}"
+
         if len(text_status) > 255:
-            text_status = f"{areas_alert} - {', '.join(city_names)}" if alert_title in text_status else f"{', '.join(city_names)}"
+            text_status = f"{data_count} התרעות שונות ב־{areas_alert}"
+        
+        if len(text_status) > 255:
+            text_status = f"{data_count} התרעות שונות"
 
         if alert_c_id != self.alert_id:
             self.massive += 1
@@ -566,10 +578,10 @@ class Red_Alerts_Israel(Hass):
         sensor_attributes = attributes.get("attributes", {})
 
         if duration == "latest":
-            cities_data = sensor_attributes.get("cities_past_2min", [])
+            cities_data = sensor_attributes.get("prev_cities", [])
         else:
-            cities_data = sensor_attributes.get("cities_past_24h", [])
-            last_alerts = sensor_attributes.get("last_24h_alerts", [])
+            cities_data = self.cities_past_24h
+            last_alerts = self.last_24_alerts
 
         if duration == "latest":
             coordinates = []
@@ -603,13 +615,12 @@ class Red_Alerts_Israel(Hass):
                     },
                     "properties": {
                         "cities": city_names,
-                        "name": "⚠️"
                     }
                 }
                 geojson["features"].append(feature)
 
         else:
-            last_alerts = sensor_attributes.get("last_24h_alerts", [])
+            last_alerts = self.last_24_alerts
             added_cities = set()
 
             for alert in last_alerts:
