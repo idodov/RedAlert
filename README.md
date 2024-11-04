@@ -16,11 +16,19 @@ ____
 The script automatically generates two GeoJSON files that store the alert’s geolocation data, which can be displayed on the Home Assistant map.
 # Installation Instructions
 > [!TIP]
+> For saving history data you need to create a folder called `www` inside the Home Assistant directory.
 > To ensure the history of sensors is maintained after a restart in Home Assistant, it’s advisable to establish input text and boolean helpers. It’s best to do this prior to installation. Here’s how you can proceed:
 > 1. Open `configuration.yaml`.
 > 2. Add this lines and restart Home Assistant:
 > ```yaml
 > #/config/configuration.yaml
+> homeassistant:
+>   allowlist_external_urls:
+>     - http://192.168.86.20:8123  # YOUR HOME ASSISTANT IP
+>     - http://homeassistant.local:8123
+>   allowlist_external_dirs:
+>    - "/config/www"
+> 
 > input_text:
 >   red_alert:
 >     name: Last Alert in Israel
