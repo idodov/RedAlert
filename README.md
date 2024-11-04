@@ -67,7 +67,7 @@ The script automatically generates two GeoJSON files that store the alert’s ge
 >   ```yaml
 >     #/addon_configs/a0d7b954_appdaemon/appdaemon.yaml
 >     ---
->     secrets: /homeassistant/secrets.yaml
+>     #secrets: /homeassistant/secrets.yaml
 >     appdaemon:
 >         app_dir: /homeassistant/appdaemon/apps/ # If you install this script via HACS
 >         latitude: 31.9837528
