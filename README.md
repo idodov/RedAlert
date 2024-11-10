@@ -85,12 +85,13 @@ The script automatically generates two GeoJSON files that store the alert’s ge
 You have two choices to download the script: manually or via HACS. Installing from HACS ensures that if any new version of the script becomes available, you’ll receive a notification in Home Assistant. Manual download won’t provide you with future automatic updates. Pick the method that suits you best.
 ### Manual Download
 1. Download the Python file from [This Link](https://github.com/idodov/RedAlert/blob/main/apps/red_alerts_israel/red_alerts_israel.py).
-2. Place the downloaded file inside the `/addon_configs/a0d7b954_appdaemon/apps` directory and proceed to the **final step**
+2. Place the downloaded file inside the `appdaemon/apps` directory and proceed to the final step
 ### HACS Download
-1. In Home Assistant: Navigate to `HACS` > `Automation`
-   * If this option is not available, go to `Settings` > `Integrations` > `HACS` > `Configure` and enable `AppDaemon apps discovery & tracking`. After enabling, return to the main HACS screen and select `Automation`
-2. Navigate to the `Custom Repositories` page and add the following repository as `Appdaemon`: `https://github.com/idodov/RedAlert/`
-3. Return to the `HACS Automation` screen, search for `Red Alerts Israel`, click on `Download` and proceed to the **final step**
+1. In Home Assistant: Navigate to `Settings` > `Integrations` > `HACS` > `Configure` and enable `AppDaemon apps discovery & tracking`. After enabling, return to the main HACS screen.
+   * ![{D6AD7841-B9A6-460A-A1C6-B1C680188B66}](https://github.com/user-attachments/assets/18a39041-57a8-4acd-89e9-7ce44874c894)
+
+2. Navigate to the `Custom Repositories` page and add the following repository as `AppDaemon`: `https://github.com/idodov/RedAlert/`
+3. Return to the main `HACS` screen and search for `Red Alerts Israel`.  Click on `Download` and proceed to the **final step**
 ### Final Step
 In the `appdaemon/apps/apps.yaml` file, add the following code. 
 > [!IMPORTANT]
