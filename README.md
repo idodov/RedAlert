@@ -20,26 +20,26 @@ The script automatically generates two GeoJSON files that store the alert’s ge
 > To ensure the history of sensors is maintained after a restart in Home Assistant, it’s advisable to establish input text and boolean helpers. It’s best to do this prior to installation. Here’s how you can proceed:
 > 1. Open `configuration.yaml`.
 > 2. Add this lines and restart Home Assistant:
-> ```yaml
-> #/config/configuration.yaml
-> homeassistant:
->   allowlist_external_urls:
->     - http://192.168.86.20:8123  # YOUR HOME ASSISTANT IP
->     - http://homeassistant.local:8123
->   allowlist_external_dirs:
->    - "/config/www"
-> 
-> input_text:
->   red_alert:
->     name: Last Alert in Israel
->     min: 0
->     max: 255
->
-> input_boolean:
->   red_alert_test:
->     name: Test Alert
->     icon: mdi:alert-circle
-> ```
+```yaml
+#/config/configuration.yaml
+homeassistant:
+  allowlist_external_urls:
+    - http://192.168.86.20:8123  # YOUR HOME ASSISTANT IP
+    - http://homeassistant.local:8123
+  allowlist_external_dirs:
+   - "/config/www"
+
+input_text:
+  red_alert:
+    name: Last Alert in Israel
+    min: 0
+    max: 255
+
+input_boolean:
+  red_alert_test:
+    name: Test Alert
+    icon: mdi:alert-circle
+```
 1. Install the **AppDaemon** addon in Home Assistant by going to `Settings` > `Add-ons` > `Ad-on-store` and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
 3. Go to the AppDaemon ***configuration*** page and add `requests` ***Python package*** under the Python Packages section.
@@ -64,24 +64,26 @@ The script automatically generates two GeoJSON files that store the alert’s ge
 > *  `time_zone: Asia/Jerusalem`.
 > *   If you install this script via HACS - **Specify the apps directory in `app_dir: /homeassistant/appdaemon/apps/`.**
 >     * Also **transfer** all files from `/addon_configs/a0d7b954_appdaemon/apps` to `/config/appdaemon/apps`.
->   ```yaml
->     #/addon_configs/a0d7b954_appdaemon/appdaemon.yaml
->     ---
->     #secrets: /homeassistant/secrets.yaml
->     appdaemon:
->         app_dir: /homeassistant/appdaemon/apps/ # If you install this script via HACS
->         latitude: 31.9837528
->         longitude: 34.7359077
->         elevation: 2
->         time_zone: Asia/Jerusalem
->         plugins:
->           HASS:
->             type: hass
->     http:
->         url: http://127.0.0.1:5050
->     admin:
->     api:
->     hadashboard:
+```yaml
+#/addon_configs/a0d7b954_appdaemon/appdaemon.yaml
+---
+# secrets: /homeassistant/secrets.yaml
+appdaemon:
+  app_dir: /homeassistant/appdaemon/apps/ # If you install this script via HACS
+  latitude: 31.9837528
+  longitude: 34.7359077
+  elevation: 2
+  time_zone: Asia/Jerusalem
+  plugins:
+    HASS:
+      type: hass
+      #token: !secret appdaemon
+http:
+  timeout: 30
+admin:
+api:
+hadashboard:
+```
 You have two choices to download the script: manually or via HACS. Installing from HACS ensures that if any new version of the script becomes available, you’ll receive a notification in Home Assistant. Manual download won’t provide you with future automatic updates. Pick the method that suits you best.
 ### Manual Download
 1. Download the Python file from [This Link](https://github.com/idodov/RedAlert/blob/main/apps/red_alerts_israel/red_alerts_israel.py).
@@ -323,18 +325,18 @@ content: >-
 > You can also create a specialHis markdown card to track the sensor:
 > 
 > ![runs](https://github.com/idodov/RedAlert/assets/19820046/ba01b903-7cd8-4549-9859-8081d8f11712)
-> ```yaml
-> type: markdown
-> content: >-
->   {% set status = (as_timestamp(now()) -
->   as_timestamp(states.binary_sensor.red_alert.last_updated)) < 30 %}
->   {% if status %}
->   <ha-alert alert-type="info">Run **{{ state_attr('binary_sensor.red_alert', 'count') }}** times since restart
->   {% else %}
->   <ha-alert alert-type="warning">**SCRIPT IS NOT RUNNING!!!**
->   {% endif %}
->   </ha-alert>
-> ```
+```yaml
+type: markdown
+content: >-
+  {% set status = (as_timestamp(now()) -
+  as_timestamp(states.binary_sensor.red_alert.last_updated)) < 30 %}
+  {% if status %}
+  <ha-alert alert-type="info">Run **{{ state_attr('binary_sensor.red_alert', 'count') }}** times since restart
+  {% else %}
+  <ha-alert alert-type="warning">**SCRIPT IS NOT RUNNING!!!**
+  {% endif %}
+  </ha-alert>
+```
 
 ## binary_sensor.red_alert Attribues
 You can use any attribue from the sensor. For example, to show the title on lovelace card, use this code syntax: 
@@ -420,14 +422,14 @@ The script also creates two GeoJSON files automatically, which store the alert�
 ![{28E29F42-3F7F-4625-859B-587381F81941}](https://github.com/user-attachments/assets/23f2f200-28a9-49c1-82c7-79a00343f23c)
 > [!NOTE]
 > If the GeoJSON integration can't access the GeoJSON file, open the `configuration.yaml` file and add the necessary approval, like this:
-> ```yaml
-> homeassistant:
->   allowlist_external_urls:
->     - http://192.168.86.174:8123      # YOUR HA IP
->     - http://homeassistant.local:8123
->   allowlist_external_dirs:
->     - "/config/www"
-> ```
+```yaml
+homeassistant:
+  allowlist_external_urls:
+    - http://192.168.86.174:8123      # YOUR HA IP
+    - http://homeassistant.local:8123
+  allowlist_external_dirs:
+    - "/config/www"
+```
 
 ## History File
 The script stores the sensor data in a text file named `red_alert_history.txt` and `red_alert_history.csv`, both located in the `\\homeassistant\config\www` directory. Each time an alert (including test alerts) is triggered, the files gets updated. The dedicated CSV file can be opened in any spreadsheet application, such as Excel or Google Sheets.
