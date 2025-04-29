@@ -1,694 +1,720 @@
-# Israeli Red Alert Service for Home Assistant (AppDaemon)
+# Red Alerts Israel
 ***Not Official Pikud Ha-Oref***
 
-This script creates a suite of binary sensors that issue warnings for all hazards signaled by PIKUD HA-OREF. These hazards encompass red alerts for missile and rocket fire, breaches by unauthorized aircraft, seismic activity, tsunami warnings, terrorist incursions, chemical spill emergencies, non-conventional warfare, among other dangers. Upon receiving an alert, the specific type of threat is indicated at the start of the message (for instance, `ירי רקטות וטילים` for rocket and missile fire).
+> Simple rocket-alert monitoring for Home Assistant via AppDaemon
 
-The script offers additional functionalities, such as archiving all alert details in a historical text and CSV files and facilitating the creation of additional sub-sensors derived from the primary sensor.
-____
-### This script introduces four new entities in Home Assistant:
-> [!NOTE]
-> **You can customize the sensor name to your liking, with `red_alert` set as the default.**
-* `binary_sensor.red_alert`: Holds PIKUD HA-OREF data, triggering on alarms and resetting otherwise. It’s useful for automations or creating additional sensors.
-* `binary_sensor.red_alert_city`: Similar to the above but only triggers if the specified city is targeted by the alarm.
-* `input_text.red_alert`: Logs the most recent alert data, serving as a historical log.
-* `input_boolean.red_alert_test`: Simulates a dummy alert to verify automation setups.
+Red Alerts Israel is an AppDaemon application for Home Assistant that connects to the official Israeli Home Front Command (Pikud HaOref) API. It fetches real-time "Tzeva Adom" rocket alerts and other hazards, making this information available via easy-to-use Home Assistant sensors.
 
-The script automatically generates two GeoJSON files that store the alert’s geolocation data, which can be displayed on the Home Assistant map.
+This script monitors various hazards signaled by PIKUD HA-OREF, including missile/rocket fire, unauthorized aircraft, seismic activity, tsunami, terrorist incursions, chemical emergencies, and more. Upon receiving an alert, the specific threat type is indicated, for example, `ירי רקטות וטילים` for rocket and missile fire.
+
+The application is designed for reliability and persistence, offering features like archiving alert details, state persistence via JSON backup, triggering Home Assistant native events, publishing messages via MQTT, and providing detailed sensor attributes for creating derived sensors and advanced automations.
+
+---
+
+## Key Features
+
+*   **Polls** the official Israeli Home Front Command API every few seconds for live alerts.
+*   **Creates** dedicated Home Assistant entities: main binary sensors, a text helper, a test boolean, and three detailed history sensors.
+*   **Offers** flexible alert notification publishing via **MQTT** and native **Home Assistant events** triggered by new alert payloads.
+*   **Saves** alert history (TXT, CSV) and the last active state (JSON) for persistence across restarts (optional).
+*   **Generates** GeoJSON files for visualizing active and historical alert locations on the Home Assistant map (optional).
+*   **Provides** specific binary sensors to indicate if an alert affects *your configured cities* or if it's a special "Pre-Alert" type.
+*   **Tracks** the history of distinct alert events within a configurable time window.
+*   **Generates** pre-formatted messages suitable for platforms like WhatsApp and Telegram based on cumulative window data.
+
+---
+
+## Entities Created
+
+The script creates several Home Assistant entities, using your configured `sensor_name` as the base name (default: `red_alert`):
+
+*   `binary_sensor.YOUR_SENSOR_NAME`: Indicates if *any* alert is currently active *nationwide*. This sensor stays `on` for the duration of the configured `timer` after the *last detected alert activity* in a sequence.
+*   `binary_sensor.YOUR_SENSOR_NAME_city`: Indicates if `binary_sensor.YOUR_SENSOR_NAME` is `on` *and* the alert window includes one of the specific cities/areas you configured in `city_names`.
+*   `binary_sensor.YOUR_SENSOR_NAME_pre_alert`: Indicates if a **pre alert** is currently active *nationwide*. This sensor turns `on`.
+*   `binary_sensor.YOUR_SENSOR_NAME_city_pre_alert`: Indicates if a **pre alert** alert is currently active *and* affects one of your configured `city_names`. This sensor turns `on` only when an pre alert is received and processed AND the alert window includes one of your configured `city_names`.
+*   `binary_sensor.YOUR_SENSOR_NAME_active_alert`: Indicates if an alert with a **category other than pre alert** is currently active *nationwide*. This sensor turns `on`.
+*   `binary_sensor.YOUR_SENSOR_NAME_city_active_alert`: Indicates if an alert with a **category other pre alert** is currently active *and* affects one of your configured `city_names`. This sensor turns `on` when a pre alert is received and processed AND the alert window includes one of your configured `city_names`.
+*   `input_text.YOUR_SENSOR_NAME`: Displays a summary of the *latest alert payload* received during an active alert window.
+*   `input_boolean.YOUR_SENSOR_NAME_test`: Allows manual triggering of a fictitious test alert sequence.
+
+Three additional history sensors track distinct alert *events* that occurred within the configured `hours_to_show` timeframe (after applying timer-based deduplication):
+
+*   `sensor.YOUR_SENSOR_NAME_history_cities`: State is the count, attributes list unique cities alerted in the history window.
+*   `sensor.YOUR_SENSOR_NAME_history_list`: State is the count, attributes list each distinct alert event entry in the history window.
+*   `sensor.YOUR_SENSOR_NAME_history_group`: State is the count, attributes group distinct alert events by title, area, and city in the history window.
+
+<details>
+<summary>Detailed Binary Sensor Logic and Attributes</summary>
+
+### Binary Sensor States (`binary_sensor.YOUR_SENSOR_NAME`, `_city`, `_pre_alert`, `_city_pre_alert`, `_active_alert`, `_city_active_alert`)
+
+All six binary sensors are controlled by the script's polling and reset logic.
+
+*   **When a new alert payload is received from the API:**
+    *   `binary_sensor.YOUR_SENSOR_NAME` turns `on` (if not already) and its internal `timer` is reset.
+    *   `binary_sensor.YOUR_SENSOR_NAME_city` turns `on` if any of the *accumulated* cities in the current alert window match your configured `city_names`, otherwise it stays `off`.
+    *   If the `cat` value in the *latest incoming alert payload* is `13`:
+        *   `binary_sensor.YOUR_SENSOR_NAME_pre_alert` turns `on`.
+        *   `binary_sensor.YOUR_SENSOR_NAME_city_pre_alert` turns `on` if the `binary_sensor.YOUR_SENSOR_NAME_city` sensor is `on` (i.e., if configured cities are affected), otherwise it turns `off`.
+        *   `binary_sensor.YOUR_SENSOR_NAME_active_alert` turns `off`.
+        *   `binary_sensor.YOUR_SENSOR_NAME_city_active_alert` turns `off`.
+    *   If the `cat` value in the *latest incoming alert payload* is *not* `13` (e.g., `cat=1` for rockets, which is the case for test alerts):
+        *   `binary_sensor.YOUR_SENSOR_NAME_pre_alert` turns `off`.
+        *   `binary_sensor.YOUR_SENSOR_NAME_city_pre_alert` turns `off`.
+        *   `binary_sensor.YOUR_SENSOR_NAME_active_alert` turns `on`.
+        *   `binary_sensor.YOUR_SENSOR_NAME_city_active_alert` turns `on` if the `binary_sensor.YOUR_SENSOR_NAME_city` sensor is `on`, otherwise it turns `off`.
+
+*   **When the alert timer expires and confirms no active alerts are pending:**
+    *   All six binary sensors (`_main`, `_city`, `_pre_alert`, `_city_pre_alert`, `_active_alert`, `_city_active_alert`) are explicitly set to `off`.
+
+*   **On Script Initialization/Restart:**
+    *   All six binary sensors are initialized to `off`.
+
+### Shared Binary Sensor Attributes
+When any of the six binary sensors are updated, they receive the *same* set of attributes. These attributes reflect the state and accumulated information for the *current alert window* since `binary_sensor.YOUR_SENSOR_NAME` last turned `on`. When `binary_sensor.YOUR_SENSOR_NAME` is `off`, they show default/empty values or the `prev_*` values from the window that just ended, providing context about the *last* alert incident.
+
+| Attribute name      | Description                                                                                                                                                                                               | Example                                    |
+| :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------- |
+| `active_now`        | `true` when `binary_sensor.YOUR_SENSOR_NAME` is `on`, `false` when `off`. Mirrors the main sensor state.                                                                                                     | `false`                                    |
+| `script_status`     | The operational status of the AppDaemon script (`initializing`, `running`, `error`, `terminated`). Useful for monitoring the script itself.                                                                | `running`                                  |
+| `id`                | Unique ID of the *latest* alert payload received during the current window.                                                                                                                               | `1721993400123456`                         |
+| `cat`               | Category number (0-14) of the *latest* alert payload. Corresponds to alert type (e.g., 1 for rockets, 13 for special update).                                                                            | `1`                                        |
+| `title`             | Title/Type of the *latest* alert payload (e.g., "ירי רקטות וטילים").                                                                                                                                      | `ירי רקטות וטילים`                        |
+| `desc`              | Recommended action description from the *latest* alert payload (e.g., "היכנסו למרחב המוגן ושהו בו 10 דקות").                                                                                                | `היכנסו למרחב המוגן ושהו בו 10 דקות`      |
+| `special_update`    | `true` if the `cat` of the *latest* alert payload is 13, `false` otherwise. This attribute mirrors the state logic of the `*_pre_alert` sensors.                                                         | `false`                                    |
+| `areas`             | Comma-separated string of *all areas* affected by *any payload* within the current active window.                                                                                                         | `גוש דן, קו העימות`                        |
+| `cities`            | A sorted list of all unique original city names affected by *any payload* within the current active window.                                                                                             | `['אור יהודה', 'תל אביב - מרכז העיר']`    |
+| `data`              | Comma-separated string of all unique original city names affected during the current active window. May be truncated if very long.                                                                      | `אור יהודה, תל אביב - מרכז העיר, חולון...` |
+| `data_count`        | Count of unique original city names affected during the current active window.                                                                                                                            | `5`                                        |
+| `duration`          | Recommended duration (in seconds) to stay in a safe room, extracted from the `desc` of the *latest* alert payload.                                                                                       | `600`                                      |
+| `icon`              | MDI icon string based on the `cat` of the *latest* alert payload.                                                                                                                                         | `mdi:rocket-launch`                        |
+| `emoji`             | Emoji character based on the `cat` of the *latest* alert payload.                                                                                                                                         | `🚀`                                       |
+| `alerts_count`      | The number of individual alert *payloads* received and processed by the script during the current active alert window (since the main sensor last went `on`).                                                | `3`                                        |
+| `last_changed`      | ISO timestamp string (`YYYY-MM-DDTHH:MM:SS.ffffff`) when *this sensor's state or any of its attributes were last updated*.                                                                                | `"2024-07-25T10:30:00.123456"`             |
+| `my_cities`         | A sorted list of the city names exactly as configured in your `apps.yaml` `city_names` list.                                                                                                              | `['חיפה - מפרץ', 'תל אביב - מרכז העיר']`   |
+| `alert`             | One-line summary string: `[Title] - [Areas]: [Cities]`. Uses cumulative window data.                                                                                                                      | `ירי רקטות וטילים - גוש דן, קו העימות: ...` |
+| `alert_alt`         | Multi-line summary string: `[Title]\n* [Area]: [Cities]\n* [Area]: [Cities]...`. Uses cumulative window data.                                                                                             | ` ירי רקטות וטילים\n* גוש דן: תל אביב...\n* קו העימות: כיסופים` |
+| `alert_txt`         | One-line string listing Areas and Cities affected in the current window: `[Area]: [Cities], [Area]: [Cities]...`.                                                                                           | `גוש דן: תל אביב - מרכז העיר, אור יהודה...` |
+| `alert_wa`          | Multi-line formatted message optimized for WhatsApp, summarizing alerts by type and area based on cumulative window data.                                                                                   |  ![whatsapp](https://github.com/idodov/RedAlert/assets/19820046/817c72f4-70b1-4499-b831-e5daf55b6220)  |
+| `alert_tg`          | Multi-line formatted message optimized for Telegram, summarizing alerts by type and area based on cumulative window data.                                                                                   |                                            |
+| `prev_cat`          | Category number of the alert from the *previous* alert window (before the main sensor last went `off` and then `on` again).                                                                            | `1`                                        |
+| `prev_title`        | Title of the alert from the *previous* alert window.                                                                                                                                                        | `ירי רקטות וטילים`                        |
+| `prev_desc`         | Description from the *previous* alert window.                                                                                                                                                             | `היכנסו למרחב המוגן ושהו בו 10 דקות`      |
+| `prev_areas`        | Areas from the *previous* alert window.                                                                                                                                                                   | `קו העימות`                                |
+| `prev_cities`       | List of cities from the *previous* alert window.                                                                                                                                                          | `['שלומי']`                                |
+| `prev_data`         | Comma-separated cities string from the *previous* alert window.                                                                                                                                           | `שלומי`                                    |
+| `prev_data_count`   | City count from the *previous* alert window.                                                                                                                                                              | `1`                                        |
+| `prev_duration`     | Duration from the *previous* alert window.                                                                                                                                                                | `600`                                      |
+| `prev_last_changed` | ISO timestamp when the *previous* alert window became active (when the main sensor state last went `on` for that window).                                                                                        | `"2024-07-25T10:15:05.987654"`             |
+| `prev_alerts_count` | Sequence count from the *previous* alert window.                                                                                                                                                          | `2`                                        |
+| `prev_special_update` | Special update flag status (`cat==13`) from the *previous* alert window.                                                                                                                                | `false`                                    |
+</details>
+
+### `input_text.YOUR_SENSOR_NAME`
+*   **State**: Holds a brief summary (up to 255 characters) derived from the *latest alert payload's* title, area, and cities (`input_text_state` attribute in the script).
+*   **Use**: Primarily intended for simple dashboard displays or logbook entries.
+*   **Important**: This sensor only updates its state when the primary binary sensor (`binary_sensor.YOUR_SENSOR_NAME`) transitions from `off` to `on`, or while it remains `on` AND the script receives a new alert payload. It goes blank or shows "אין התרעות" when the primary sensor turns `off`. Due to its character limit and update behavior, it is **not** recommended for critical automation triggers or storing the full alert details. Use the binary sensor attributes for that.
+
+### Dedicated History Sensors (`sensor.YOUR_SENSOR_NAME_history_*`)
+These sensors provide structured access to a list of distinct alert *events* that occurred within the past `hours_to_show` timeframe. An "event" here is a single alert payload that is deemed unique based on its title, city, and area, and not within the `timer` duration of a previously recorded event of the same type/location.
+
+*   **`sensor.YOUR_SENSOR_NAME_history_cities`**:
+    *   **State**: The count of unique city names that appeared in *any* distinct history event within the window.
+    *   **Attribute**: `cities_past_N_h` – A sorted list of the unique original city names. Includes `script_status`.
+*   **`sensor.YOUR_SENSOR_NAME_history_list`**:
+    *   **State**: The total count of distinct alert events within the history window.
+    *   **Attribute**: `last_N_h_alerts` – A list of dictionaries, where each dictionary represents one distinct event with keys `{ title, city, area, time }`. Includes `script_status`. Note: `time` is a string formatted as 'YYYY-MM-DD HH:MM:SS'.
+*   **`sensor.YOUR_SENSOR_NAME_history_group`**:
+    *   **State**: Same count as `sensor.YOUR_SENSOR_NAME_history_list`.
+    *   **Attribute**: `last_N_h_alerts_group` – A nested dictionary structure `{ title: { area: [ { city, time }, ... ], ... }, ... }` grouping the distinct events. Includes `script_status`. Note: `time` in this attribute is a string formatted as 'HH:MM:SS'.
+
+</details>
+
+---
+
 # Installation Instructions
-> [!TIP]
-> For saving history data you need to create a folder called `www` inside the Home Assistant directory.
-> To ensure the history of sensors is maintained after a restart in Home Assistant, it’s advisable to establish input text and boolean helpers. It’s best to do this prior to installation. Here’s how you can proceed:
-> 1. Open `configuration.yaml`.
-> 2. Add this lines and restart Home Assistant:
+
+To ensure the states of your `input_text` and `input_boolean` helpers persist across Home Assistant restarts, create them manually beforehand:
+1.  Open your Home Assistant `configuration.yaml` file using the File Editor add-on or similar method.
+<details>
+<summary>2. Add Helpers and File Access to configuration.yaml</summary>
+
+Add the configuration below under `homeassistant:`, `input_text:`, and `input_boolean:`. Adjust the `sensor_name` if you plan to use a different base name than `red_alert`.
+
 ```yaml
 #/config/configuration.yaml
+
 homeassistant:
+  # ... other homeassistant settings ...
+
+  # Required for GeoJSON integration to access files from /config/www
+  # Add the URL(s) Home Assistant uses to access itself locally
   allowlist_external_urls:
-    - http://192.168.86.20:8123  # YOUR HOME ASSISTANT IP
-    - http://homeassistant.local:8123
-  allowlist_external_dirs:
-   - "/config/www"
+    - http://<YOUR_HOME_ASSISTANT_IP_OR_HOSTNAME>:8123  # Replace with your actual HA access URL(s)
+    - http://homeassistant.local:8123 # Example using the default mDNS name
+
+  # Optional: Allow File Editor or other addons to access www if needed
+  # This entry *might* be needed if your add-on config paths are non-standard
+  # or you have issues accessing /config/www from other add-ons.
+  # allowlist_external_dirs:
+  #  - "/config/www"
 
 input_text:
+  # Matches default sensor_name. Change 'red_alert' if you use a different sensor_name
   red_alert:
-    name: Last Alert in Israel
-    min: 0
-    max: 255
+    name: Last Alert Summary
+    min: 0 # Minimum length
+    max: 255 # Maximum length for input_text state
 
 input_boolean:
+  # Matches default sensor_name. Change 'red_alert' if you use a different sensor_name
   red_alert_test:
-    name: Test Alert
+    name: Trigger Test Alert
     icon: mdi:alert-circle
 ```
-1. Install the **AppDaemon** addon in Home Assistant by going to `Settings` > `Add-ons` > `Ad-on-store` and search for **AppDaemon**.
-2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
-3. Go to the AppDaemon ***configuration*** page and add `requests` ***Python package*** under the Python Packages section.
+</details>
 
-![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
+3.  Install the **AppDaemon** addon in Home Assistant: Navigate to `Settings` > `Add-ons` > `Add-on store` > Search for "AppDaemon" and install it.
+4.  Once installed, configure AppDaemon: Enable **Show in sidebar**, **Auto-start**, and **Watchdog**. Apply the configuration changes.
+5.  **Start** the AppDaemon add-on.
+6.  Using a file editor (like the File Editor add-on), edit the AppDaemon configuration file. This is typically located at `/addon_configs/a0d7b954_appdaemon/appdaemon.yaml`.
 
-4. **Start** the add-on
-5. In file editor open **`/addon_configs/a0d7b954_appdaemon/appdaemon.yaml`** and make the changes under *appdeamon* section as described:
 > [!TIP]
->  If you’re using the File Editor add-on, it’s set up by default to only allow file access to the main Home Assistant directory. However, the AppDaemon add-on files are located in the root directory. To access these files, follow these steps:
-> 1. Go to `Settings` > `Add-ons` > `File Editor` > `Configuration`
-> 2. Toggle off the `Enforce Basepath` option.
-> 3. In the File Editor, click on the arrow next to the directory name (which will be ‘homeassistant’). This should give you access to the root directory where the AppDaemon add-on files are located.
-> 
->    ![arrow](https://github.com/idodov/RedAlert/assets/19820046/e57ea52d-d677-45b0-90c4-87723c5ddfea)
-
+>
+> If using the File Editor add-on and unable to access `/addon_configs`, you might need to disable `Enforce Basepath` in its configuration: Go to `Settings` > `Add-ons` > `File Editor` > `Configuration` and toggle the option off. Remember to re-enable it later if you prefer the security.
 
 > [!IMPORTANT]
-> You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/
-> *  `latitude: 31.9837528`
-> *  `longitude: 34.7359077`
-> *  `time_zone: Asia/Jerusalem`.
-> *   If you install this script via HACS - **Specify the apps directory in `app_dir: /homeassistant/appdaemon/apps/`.**
->     * Also **transfer** all files from `/addon_configs/a0d7b954_appdaemon/apps` to `/config/appdaemon/apps`.
+>
+> *   The `latitude`, `longitude`, `elevation`, and `time_zone` settings here are for AppDaemon itself and affect how AppDaemon handles time-based functions. They are **not** used by the Red Alerts Israel script to determine your location for filtering cities.
+> *   If you installed via **HACS**, ensure `app_dir: /homeassistant/appdaemon/apps/` is correctly set in your `appdaemon.yaml`. This tells AppDaemon where to find the script files downloaded by HACS. If you installed manually into `/config/appdaemon/apps`, this path might be `/config/appdaemon/apps`. Check your AppDaemon add-on documentation for the correct default if unsure.
+
+<details>
+<summary>Configure appdaemon.yaml</summary>
+
 ```yaml
 #/addon_configs/a0d7b954_appdaemon/appdaemon.yaml
 ---
-# secrets: /homeassistant/secrets.yaml
+# secrets: /homeassistant/secrets.yaml # Uncomment this line if you use secrets
 appdaemon:
-  app_dir: /homeassistant/appdaemon/apps/ # If you install this script via HACS
+  # Set app_dir to where AppDaemon finds your app files.
+  # For HACS installs, this is typically:
+  app_dir: /homeassistant/appdaemon/apps/
+
+  # IMPORTANT - Add your geolocation from https://www.latlong.net/
   latitude: 31.9837528
   longitude: 34.7359077
   elevation: 2
   time_zone: Asia/Jerusalem
+
   plugins:
     HASS:
       type: hass
-      #token: !secret appdaemon
+
 http:
-  timeout: 30
+  timeout: 30 # Recommended timeout
 admin:
 api:
 hadashboard:
 ```
-You have two choices to download the script: manually or via HACS. Installing from HACS ensures that if any new version of the script becomes available, you’ll receive a notification in Home Assistant. Manual download won’t provide you with future automatic updates. Pick the method that suits you best.
-### Manual Download
-1. Download the Python file from [This Link](https://github.com/idodov/RedAlert/blob/main/apps/red_alerts_israel/red_alerts_israel.py).
-2. Place the downloaded file inside the `appdaemon/apps` directory and proceed to the final step
-### HACS Download
-1. In Home Assistant: Navigate to `Settings` > `Integrations` > `HACS` > `Configure` and enable `AppDaemon apps discovery & tracking`. After enabling, return to the main HACS screen.
-   * ![{D6AD7841-B9A6-460A-A1C6-B1C680188B66}](https://github.com/user-attachments/assets/18a39041-57a8-4acd-89e9-7ce44874c894)
+</details>
 
-2. Navigate to the `Custom Repositories` page and add the following repository as `AppDaemon`: `https://github.com/idodov/RedAlert/`
-3. Return to the main `HACS` screen and search for `Red Alerts Israel`.  Click on `Download` and proceed to the **final step**
-### Final Step
-In the `appdaemon/apps/apps.yaml` file, add the following code. 
+You can download the script file manually or via HACS. Using HACS is recommended as it simplifies future updates.
+
+### Manual Download
+1.  Download the `red_alerts_israel.py` script file directly from the GitHub repository: [Download Script](https://raw.githubusercontent.com/idodov/RedAlert/main/apps/red_alerts_israel/red_alerts_israel.py).
+2.  Using the File Editor add-on or similar, create a new folder inside your AppDaemon apps directory (usually `/config/appdaemon/apps/` or `/homeassistant/appdaemon/apps/`). Name the folder `red_alerts_israel`.
+3.  Place the downloaded `red_alerts_israel.py` file inside the `/red_alerts_israel/` folder you just created.
+4.  Proceed to the final step.
+
+### HACS Download
+1.  In Home Assistant: Navigate to `Settings` > `Integrations` > `HACS` > `Configure` and enable `AppDaemon apps discovery & tracking`. After enabling, return to the main HACS screen.
+2.  Click the `...` menu in the top right and select `Custom repositories`.
+3.  Add `https://github.com/idodov/RedAlert/` as the repository URL. Select `AppDaemon` as the Category. Click `Add`.
+4.  Go back to the main HACS page, search for `Red Alerts Israel`, and click on it.
+5.  Click the `Download` button on the integration page.
+6.  Proceed to the final step.
+
+### Final Step: Configure `apps.yaml`
+In your AppDaemon applications configuration file, typically located at `/config/appdaemon/apps/apps.yaml`, add the following configuration block.
+
 > [!IMPORTANT]
-> **Make sure to replace the `city_names` values as PIKUD HA-OREF defines them. For example, don’t write `תל אביב`, instead write: `תל אביב - דרום העיר`.**
->
-> For a list of city and area names - [Click Here](https://github.com/idodov/RedAlert/blob/main/cities_name.md)
+> **`city_names` List**: The names in the `city_names` list **must exactly match** the names defined by PIKUD HA-OREF, including spelling and special characters like hyphens or quotation marks. Consult the official list here: [PIKUD HA-OREF City Names List](https://github.com/idodov/RedAlert/blob/main/cities_name.md). Using incorrect names means the `binary_sensor.YOUR_SENSOR_NAME_city` sensor will **not** turn on for those locations.
+
+<details>
+<summary>Configure apps.yaml</summary>
+
 ```yaml
-#/appdaemon/apps/apps.yaml
-red_alerts_israel:
-  module: red_alerts_israel
-  class: Red_Alerts_Israel
-  interval: 2
-  timer: 120
-  sensor_name: "red_alert"
-  save_2_file: True
-  city_names:
-    - תל אביב - מרכז העיר
-    - כיסופים
-    - שדרות, איבים, ניר עם
-    - אשדוד - א,ב,ד,ה
-    - נתיב הל''ה
+#/config/appdaemon/apps/apps.yaml
+
+# Make sure this entry matches your app directory name (e.g., red_alerts_israel folder name)
+red_alerts_israel: # This is the AppDaemon app name (used in logs)
+  module: red_alerts_israel      # Name of the Python file without the .py extension
+  class: Red_Alerts_Israel       # Name of the main class within the Python file
+
+  # --- Core Settings ---
+  interval: 5                   # (Seconds) How often the script checks the Oref API. Default: 5. Shorter intervals provide faster updates.
+  timer: 120                    # (Seconds) How long binary_sensor.#sensor_name# and binary_sensor.#sensor_name#_city stay 'on' *after the last alert activity is detected* in an incident window. Default: 120.
+  sensor_name: "red_alert"      # Base name for all created Home Assistant entities (e.g., binary_sensor.red_alert). Match this in configuration.yaml if using default helpers. Default: "red_alert".
+
+  # --- History & Saving ---
+  save_2_file: True             # Set to True to enable saving history (.txt, .csv), GeoJSON files (latest & 24h), and JSON state backup to the '/config/www' folder. Default: True. Requires www folder to be writeable.
+  hours_to_show: 12             # (Hours) The duration for the dedicated history sensors (sensor.#sensor_name#_history_*). Alerts older than this are excluded from history attributes. Default: 4.
+
+  # --- Optional Features ---
+  mqtt: False                   # (Boolean or String) Set True to publish JSON alert payload via MQTT to 'home/[sensor_name]/event' topic when a new alert payload is received. Set to a custom topic string (e.g., "notifications/alerts") for a different topic. Default: False.
+  event: True                   # (Boolean) Set True to fire a native Home Assistant event '[sensor_name]_event' with the full alert payload when a new alert payload is received. Default: True.
+
+  # --- Location Specific ---
+  city_names:                   # List of exact city/area names you want to monitor for binary_sensor.#sensor_name#_city. Case-sensitive.
+     - "אזור תעשייה צפוני אשקלון"  # Example: Ashkelon Industrial Zone North
+     - "חיפה - מפרץ"                # Example: Haifa Bay
+     - "תל אביב - מרכז העיר"        # Example: Tel Aviv - City Center
+     # Add more city names here exactly as they appear in cities_name.md
+     - "אשדוד - א,ב,ד,ה"
+     - "כיסופים"
+
 ```
 
-| Parameter | Description | Example |
-|---|---|---|
-| `interval` | The interval in seconds at which the script runs | `2` |
-| `timer` | The duration, in seconds, for which the sensor remains on after an alert | `120` |
-| `sensor_name` | The name of the primary binary sensor in Home Assistant (`binary_sensor.#sensor_name#`) | `red_alert` |
-| `save_2_file` | Store historical data files. Each time an alert is triggered, a dedicated TXT file and CSV file will save the data. This file is accessible from the Home Assistant WWW directory/ The CSV can be opened in any spreadsheet application, such as Excel or Google Sheets | `True` |
-| `city_names` | The names of the cities that activate the second binary sensor that will be named `binary_sensor.#sensor_name#_city`. *You can add as many cities you want* | `תל אביב - מרכז העיר` |
-_______
-## YOU ARE ALL SET!  
-Home Assistant initializes four distinct entities:
-* `binary_sensor.red_alert`: This is the main entity that becomes active during a Red Alert in Israel and reverts to inactive otherwise. It encompasses a range of attributes like category, ID, title, data, description, active alert count, and emojis.
-* `binary_sensor.red_alert_city`: This entity retains PIKUD-HA-OREF data and is activated solely if the alert includes the specified city.
-* `input_text.red_alert`: Intended for logging alert history in the logbook. Given Home Assistant’s 255-character limit for text entities, extensive events may lead to data being cut off or omitted. Therefore, it’s inadvisable to rely on this entity for automation triggers or to generate sub-sensors.
-* `input_boolean.red_alert_test`: Flipping this switch generates fictitious data (for selected cities) that activates the sensor for a set duration as per the `timer` configuration.
+| Parameter       | Description                                                                                                                                                                                                                                                                                          | Example                         | Default Value |
+| :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------ | :------------ |
+| `interval`      | The interval in seconds at which the script polls the API. Shorter intervals mean faster updates but more frequent API calls. Must be > 1.                                                                                                                                                         | `3`                             | `5`           |
+| `timer`         | The duration, in seconds, for which the main binary sensors (`binary_sensor.YOUR_SENSOR_NAME`, `binary_sensor.YOUR_SENSOR_NAME_city`) remain `on` after the *last alert activity is detected* in a single alert window. After this time *and* confirmation of no active alerts, sensors turn `off`. | `180`                           | `120`         |
+| `sensor_name`   | The base name for all created Home Assistant entities (e.g., `binary_sensor.YOUR_NAME`). Choose a unique name. Ensure it matches the name used for the `input_text` and `input_boolean` helpers in `configuration.yaml`.                                                                     | `"tseva_adom"`                  | `"red_alert"` |
+| `save_2_file`   | Set to `True` to enable saving history files (.txt, .csv), GeoJSON files (`latest` and `history`), and a JSON state backup file to the `/config/www` directory. Requires write permissions for the AppDaemon user/container.                                                                       | `True`                          | `True`        |
+| `hours_to_show` | The duration, in hours, that the dedicated history sensors (`sensor.YOUR_SENSOR_NAME_history_*`) should track and display distinct past alert events. Alerts older than this window are pruned from history attributes.                                                                                 | `24`                            | `4`           |
+| `mqtt`          | Set to `True` to publish the full JSON alert payload via MQTT when a *new alert payload* is received from the API. The default topic is `home/YOUR_SENSOR_NAME/event`. Can be set to a string (e.g., `"your/custom/topic"`) for a different topic.                                                  | `True` or `"alerts/rocket"`     | `False`       |
+| `event`         | Set to `True` to fire a native Home Assistant event (`YOUR_SENSOR_NAME_event`) with the full alert payload when a *new alert payload* is received from the API.                                                                                                                                  | `True`                          | `True`           |
+| `city_names`    | A list of the exact city or area names you want to monitor for the city-specific sensor (`binary_sensor.YOUR_SENSOR_NAME_city`). Names must match the official PIKUD HA-OREF list precisely ([cities_name.md](https://github.com/idodov/RedAlert/blob/main/cities_name.md)). Can be an empty list `[]`. | `תל אביב - מרכז העיר` | `[]`          |
 
-**Card Example**
+</details>
+
+7.  Restart the AppDaemon add-on after saving `apps.yaml`. Check the AppDaemon logs (`Settings` > `Add-ons` > `AppDaemon` > `Log`) for errors during initialization.
+
+
+## Home Assistant Entities Summary
+
+After successful installation and configuration, Home Assistant will expose several new entities based on your `sensor_name` (default: `red_alert`):
+
+*   `binary_sensor.red_alert`: State is `on` during *any* alert nationwide, `off` otherwise (controlled by `timer`). Attributes contain latest and cumulative data for the current window.
+*   `binary_sensor.red_alert_city`: State is `on` only if an alert includes one of your `city_names`. Attributes contain same data as the main sensor for the current window.
+*   `input_text.red_alert`: State shows a brief summary of the *latest alert payload* when a sensor is `on`.
+*   `input_boolean.red_alert_test`: Toggle this to `on` to manually trigger a test alert sequence. It will turn `off` automatically when the test completes.
+*   `sensor.red_alert_history_cities`: State is the count of unique cities in the history window (`hours_to_show`). Attribute `cities_past_N_h` lists them.
+*   `sensor.red_alert_history_list`: State is the count of distinct alert *events* in the history window. Attribute `last_N_h_alerts` lists the events.
+*   `sensor.red_alert_history_group`: State is the count of distinct alert *events* in the history window. Attribute `last_N_h_alerts_group` provides a grouped structure.
+
+
+</details>
+
+## Attribute Reference
+The primary binary sensors (`binary_sensor.YOUR_SENSOR_NAME` and `binary_sensor.YOUR_SENSOR_NAME_city`) expose detailed attributes about the current alert window. You can access any attribute in automations, templates, or Lovelace cards using `state_attr('ENTITY_ID', 'attribute_name')`. For example: ```{{ state_attr('binary_sensor.red_alert', 'title') }}```
+
+<details>
+<summary>Full List of Sensor Attributes for `binary_sensor.YOUR_SENSOR_NAME` and `binary_sensor.YOUR_SENSOR_NAME_city`</summary>
+
+These attributes reflect the *current state of the alert window* since the sensor last turned `on`. When the sensor is `off`, they show default/empty values or the `prev_*` values from the window that just ended.
+
+| Attribute name      | Description                                                                                                                                                                                               | Example                                    |
+| :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------- |
+| `active_now`        | `true` when the sensor state is `on`, `false` when `off`. Mirrors the sensor state.                                                                                                                       | `false`                                    |
+| `script_status`     | The operational status of the AppDaemon script (`initializing`, `running`, `error`, `terminated`). Useful for monitoring the script itself.                                                                | `running`                                  |
+| `id`                | Unique ID of the *latest* alert payload received during the current window.                                                                                                                               | `1721993400123456`                         |
+| `cat`               | Category number (1-13) of the *latest* alert payload. Corresponds to alert type (e.g., 1 for rockets).                                                                                                    | `1`                                        |
+| `title`             | Title/Type of the *latest* alert payload (e.g., "ירי רקטות וטילים").                                                                                                                                      | `ירי רקטות וטילים`                        |
+| `desc`              | Recommended action description from the *latest* alert payload (e.g., "היכנסו למרחב המוגן ושהו בו 10 דקות").                                                                                                | `היכנסו למרחב המוגן ושהו בו 10 דקות`      |
+| `special_update`    | `true` if the *latest* alert payload is a "special update" from Pikud HaOref, `false` otherwise.                                                                                                          | `false`                                    |
+| `areas`             | Comma-separated string of *all areas* affected by *any payload* within the current active window.                                                                                                         | `גוש דן, קו העימות`                        |
+| `cities`            | A sorted list of all unique original city names affected by *any payload* within the current active window.                                                                                             | `['אור יהודה', 'תל אביב - מרכז העיר']`    |
+| `data`              | Comma-separated string of all unique original city names affected during the current active window. May be truncated if very long.                                                                      | `אור יהודה, תל אביב - מרכז העיר, חולון...` |
+| `data_count`        | Count of unique original city names affected during the current active window.                                                                                                                            | `5`                                        |
+| `duration`          | Recommended duration (in seconds) to stay in a safe room, extracted from the `desc` of the *latest* alert payload.                                                                                       | `600`                                      |
+| `icon`              | MDI icon string based on the `cat` of the *latest* alert payload.                                                                                                                                         | `mdi:rocket-launch`                        |
+| `emoji`             | Emoji character based on the `cat` of the *latest* alert payload.                                                                                                                                         | `🚀`                                       |
+| `alerts_count`      | The number of individual alert *payloads* received and processed by the script during the current active alert window (since the sensor last went `on`).                                                | `3`                                        |
+| `last_changed`      | ISO timestamp string (`YYYY-MM-DDTHH:MM:SS.ffffff`) when *this sensor's state or any of its attributes were last updated*.                                                                                | `"2024-07-25T10:30:00.123456"`             |
+| `my_cities`         | A sorted list of the city names exactly as configured in your `apps.yaml` `city_names` list.                                                                                                              | `['חיפה - מפרץ', 'תל אביב - מרכז העיר']`   |
+| `alert`             | One-line summary string: `[Title] - [Areas]: [Cities]`. Uses cumulative window data.                                                                                                                      | `ירי רקטות וטילים - גוש דן, קו העימות: ...` |
+| `alert_alt`         | Multi-line summary string: `[Title]\n* [Area]: [Cities]\n* [Area]: [Cities]...`. Uses cumulative window data.                                                                                             | ` ירי רקטות וטילים\n* גוש דן: תל אביב...\n* קו העימות: כיסופים` |
+| `alert_txt`         | One-line string listing Areas and Cities affected in the current window: `[Area]: [Cities], [Area]: [Cities]...`.                                                                                           | `גוש דן: תל אביב - מרכז העיר, אור יהודה...` |
+| `alert_wa`          | Multi-line formatted message optimized for WhatsApp, summarizing alerts by type and area based on cumulative window data.                                                                                   |  ![whatsapp](https://github.com/idodov/RedAlert/assets/19820046/817c72f4-70b1-4499-b831-e5daf55b6220)  |
+| `alert_tg`          | Multi-line formatted message optimized for Telegram, summarizing alerts by type and area based on cumulative window data.                                                                                   |                                            |
+| `prev_cat`          | Category number of the alert from the *previous* alert window (before the sensor last went `off` and then `on` again).                                                                                      | `1`                                        |
+| `prev_title`        | Title of the alert from the *previous* alert window.                                                                                                                                                        | `ירי רקטות וטילים`                        |
+| `prev_desc`         | Description from the *previous* alert window.                                                                                                                                                             | `היכנסו למרחב המוגן ושהו בו 10 דקות`      |
+| `prev_areas`        | Areas from the *previous* alert window.                                                                                                                                                                   | `קו העימות`                                |
+| `prev_cities`       | List of cities from the *previous* alert window.                                                                                                                                                          | `['שלומי']`                                |
+| `prev_data`         | Comma-separated cities string from the *previous* alert window.                                                                                                                                           | `שלומי`                                    |
+| `prev_data_count`   | City count from the *previous* alert window.                                                                                                                                                              | `1`                                        |
+| `prev_duration`     | Duration from the *previous* alert window.                                                                                                                                                                | `600`                                      |
+| `prev_last_changed` | ISO timestamp when the *previous* alert window became active (when the sensor state last went `on` for that window).                                                                                        | `"2024-07-25T10:15:05.987654"`             |
+| `prev_alerts_count` | Sequence count from the *previous* alert window.                                                                                                                                                          | `2`                                        |
+| `prev_special_update` | Special update flag status from the *previous* alert window.                                                                                                                                            | `false`                                    |
+</details>
+
+---
+
+# Usage Examples
+
+## Creating Derived Sensors for Specific Updates
+
+The primary binary sensors (`binary_sensor.YOUR_SENSOR_NAME` and `binary_sensor.YOUR_SENSOR_NAME_city`) remain `on` for the `timer` duration *after the last alert activity* in a window. If multiple alert *payloads* arrive in quick succession during this window, the sensor's attributes update, but the state stays `on`.
+
+To trigger automations on *each new alert payload* (not just the `off` to `on` state change) or specific types of updates, you can create template binary sensors that monitor attribute changes of the primary sensors.
+
+A particularly useful attribute is `special_update`. PIKUD HA-OREF sometimes sends specific informational updates (like "Alert will trigger soon") which the script flags by setting this attribute to `true`. You can create binary sensors that turn `on` specifically when the `special_update` attribute becomes `true` on the main or city sensor:
+
+<details>
+<summary>Example Template Binary Sensors for "Special Update" (add to 'configuration.yaml')</summary>
+
+You can then use these `special_update` sensors as triggers in your Home Assistant automations to react specifically to these types of informative alerts from the Home Front Command.
+
+You could also create a template sensor that triggers on *any* attribute.
+```yaml
+# Add this block to your configuration.yaml file
+# You may need to adjust the entity IDs (e.g., binary_sensor.red_alert)
+# if you configured a different sensor_name.
+
+binary_sensor:
+  # This sensor turns ON when a 'special_update' alert payload
+  # is received by the script, regardless of affected area.
+  - platform: template
+    sensors:
+      red_alert_special_update: # Choose a unique entity ID name
+        friendly_name: "Red Alert Special Update"
+        value_template: "{{ state_attr('binary_sensor.red_alert', 'special_update') == true }}"
+
+  # Optional: This sensor turns ON when a 'special_update' alert payload
+  # is received AND it affects one of your configured cities.
+  - platform: template
+    sensors:
+      red_alert_city_special_update: # Choose a unique entity ID name
+        friendly_name: "My City Special Alert Update"
+        value_template: "{{ state_attr('binary_sensor.red_alert_city', 'special_update') == true }}"
+
+```
+
+</details>
+
+---
+
+### Lovelace Card Example
+
+You can add the entities to your dashboard using various cards. Here's a simple example using a Vertical Stack card:
 
 ![red-alerts-sensors](https://github.com/idodov/RedAlert/assets/19820046/e0e779fc-ed92-4f4e-8e36-4116324cd089)
+<details>
+<summary>Lovelace Card YAML</summary>
+
 ```yaml
 type: vertical-stack
 cards:
   - type: tile
-    entity: input_text.red_alert
+    entity: input_text.red_alert # Displays the main alert summary text
     vertical: true
-    state_content: last-changed
+    state_content: state # Or set to 'last-changed', 'last-updated', etc.
+
   - type: entities
     entities:
-      - entity: binary_sensor.red_alert
-      - entity: binary_sensor.red_alert_city
-      - entity: input_boolean.red_alert_test
-    state_color: true
+      - entity: binary_sensor.red_alert # Main sensor (any alert)
+        state_color: true # Optional: Color icon based on state
+      - entity: binary_sensor.red_alert_city # City-specific sensor
+        state_color: true # Optional: Color icon based on state
+      - entity: sensor.red_alert_history_cities # Example history sensor
+      - entity: input_boolean.red_alert_test # Test trigger
+    state_color: true # Applies state_color to entities unless overridden above
+```
+</details>
+
+### Map Visualization (GeoJSON)
+
+![GeoJSON Map Example](https://github.com/user-attachments/assets/6834a827-0186-4b60-921c-f5918dc3bd1b)
+> [!NOTE]
+> If the GeoJSON integration fails to load, double-check your `allowlist_external_urls` and the exact URL you are using in the integration setup. Also verify that the files actually exist in the `/config/www` folder after an alert occurs (or after script initialization for the empty/default files).
+
+<details>
+<summary>GeoJSON Setup Details</summary>
+
+If the `save_2_file` parameter is set to `True`, the script automatically generates two GeoJSON files in the Home Assistant `/config/www` directory. This directory is typically accessible via the Home Assistant frontend at the URL `/local/`.
+
+*   **`YOUR_SENSOR_NAME_latest.geojson`**: Contains coordinate data for the unique cities included in the *currently active* alert window. This file is updated whenever a new payload arrives within an active window.
+*   **`YOUR_SENSOR_NAME_24h.geojson`**: Contains coordinate data for *distinct alert events* that occurred within the last `hours_to_show` timeframe, based on the history sensor data. This file is updated every time the primary sensor state changes (on -> off, or off -> on) or when a new payload arrives during an active window.
+
+**To display these on the Home Assistant map:**
+1.  Ensure the `www` folder exists in your `/config` directory.
+2.  Ensure your `configuration.yaml` includes `allowlist_external_urls` correctly configured with the URL(s) you use to access your Home Assistant instance (as shown in the Installation steps). This allows the GeoJSON integration to fetch the files.
+3.  Install the GeoJSON integration in Home Assistant: Go to `Settings` > `Devices & Services` > `Add Integration`, search for "GeoJSON", and follow the prompts.
+4.  When prompted for the GeoJSON file URL, enter `http://YOUR_HOME_ASSISTANT_IP_OR_HOSTNAME:8123/local/YOUR_SENSOR_NAME_24h.geojson`. Replace `YOUR_HOME_ASSISTANT_IP_OR_HOSTNAME:8123` with your actual Home Assistant access address and port, and `YOUR_SENSOR_NAME` with your configured sensor base name.
+5.  Optionally, add a second GeoJSON integration entity pointing to `http://YOUR_HOME_ASSISTANT_IP_OR_HOSTNAME:8123/local/YOUR_SENSOR_NAME_latest.geojson` to visualize only the currently active alert locations separately.
+6.  After adding the integration entity/entities, you can click on the created GeoJSON entity (e.g., `geo_location.your_sensor_name_24h`). In the entity's settings, you can adjust the `Default maximum radius` (e.g., set it to 2000-3000 km to ensure all points in Israel are visible) and `Home Zone Behavior`.
+
+![{28E29F42-3F7F-4625-859B-587381F81941}](https://github.com/user-attachments/assets/23f2f200-28a9-49c1-82c7-79a00343f23c)
+
+</details>
+
+### Home Assistant Events
+
+If the `event` parameter is set to `True` (default), the script fires a native Home Assistant event *each time a new alert payload is received* from the API. This is often the most responsive way to trigger automations, as it doesn't rely on polling sensor states.
+
+The event name is `YOUR_SENSOR_NAME_event`. You can see these events in Home Assistant's Developer Tools > Events section by subscribing to `YOUR_SENSOR_NAME_event`.
+
+<details>
+<summary>Home Assistant Event Data Structure & Example Automation</summary>
+
+The data payload associated with the `YOUR_SENSOR_NAME_event` is a dictionary containing detailed information about the *specific alert payload* that triggered the event:
+
+| Key            | Type     | Description                                                                                                                                   | Example Value                         |
+| :------------- | :------- | :-------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------ |
+| `id`           | integer  | Unique ID of the alert payload from the API.                                                                                                  | `1234567890123456`                    |
+| `category`     | integer  | Category number of the alert (corresponds to type, 1-13).                                                                                     | `1`                                   |
+| `title`        | string   | Title of the alert (e.g., "ירי רקטות וטילים").                                                                                                | `"ירי רקטות וטילים"`                 |
+| `cities`       | list     | A list of the original city names affected by *this specific payload*.                                                                        | `["אבירים", "פסוטה"]`                |
+| `areas`        | string   | A comma-separated string of areas affected by *this specific payload*.                                                                        | `"קו העימות"`                         |
+| `description`  | string   | The recommended action description (e.g., "היכנסו למרחב המוגן ושהו בו 10 דקות").                                                             | `"היכנסו למרחב המוגן ושהו בו 10 דקות"` |
+| `timestamp`    | string   | ISO formatted timestamp when the event was processed by the script.                                                                           | `"2024-07-25T10:30:00.123456"`        |
+| `alerts_count` | integer  | The sequence number of this alert *payload* within the current active alert window. This count resets when the main binary sensor goes `off`. | `1` (for the first in a window) or `3` |
+| `is_test`      | boolean  | `True` if this event was triggered by the test input_boolean, `False` for real alerts from the API.                                           | `False`                               |
+
+**Example Automation Triggering on the Event:**
+
+You can set up an automation in Home Assistant that triggers whenever this event is fired:
+
+**Example event payload**
+```json
+{
+   "id": 1234567890123456,
+   "category": 1,
+   "title": "ירי רקטות וטילים",
+   "cities": ["אבירים", "פסוטה"],
+   "areas": "עוטף עזה",
+   "description": "היכנסו למרחב המוגן ושהו בו 10 דקות",
+   "timestamp": "2024-07-25T10:30:00",
+   "alerts_count": 2,
+   "is_test": false
+}
 ```
 
-**24 Hours History**
-
-![red-alert-history-data](https://github.com/user-attachments/assets/1b3861c0-4953-47d9-ab28-a281260d8c4f)
-> [!TIP]
-> You can modify the card by choosing to show or not to show the history and more information data.
-> `{% set show_history = False %}` False is to not show the 24 hours alert history
-> `{% set show_info = False %}` - False is to not show the more info data
+**Example automation added to automations.yaml or configured via the UI**
 ```yaml
+automation:
+  - alias: Respond to Red Alert Event
+    # Trigger when the custom event is fired
+    trigger:
+      platform: event
+      event_type: red_alert_event # Use your configured sensor_name_event name
+    action:
+      # Example Action: Send a notification with details from the event data
+      - service: notify.your_notification_service # Replace with your actual notification service entity ID
+        data:
+          title: "🔴 Red Alert!"
+          message: >
+            {% set data = trigger.event.data %}
+            {{ data.title }} in {{ data.cities | join(', ') }}
+            [{{ as_timestamp(data.timestamp) | timestamp_custom('%H:%M:%S', true) }}]
+            {{ data.description }}
+
+      # Example Action: Play a TTS message
+      # - service: tts.speak
+      #   data:
+      #     media_player_entity_id: media_player.your_speaker # Replace with your speaker
+      #     language: he-IL # Set language if needed
+      #     message: >
+      #       {% set data = trigger.event.data %}
+      #       התרעת {{ data.title }} ב{{ data.areas }}. {{ data.description }}
+
+      # Add other actions like turning on lights, etc.
+```
+</details>
+
+### MQTT Events
+
+If the `mqtt` parameter is set to `True` (or a custom topic string), the script publishes a JSON message to an MQTT topic *each time a new alert payload is received* from the API. This is useful for integrating with other systems or dashboards that consume MQTT messages.
+
+The default MQTT topic is `home/YOUR_SENSOR_NAME/event`. If you set `mqtt` to a string (e.g., `"my/alerts/topic"`), that string will be used as the topic.
+
+<details>
+<summary>MQTT Payload Structure & Example Automation</summary>
+
+The payload published to the MQTT topic is a JSON string containing details about the *specific alert payload* that was received.
+
+**Example Payload (JSON string) - Note: This structure matches the specific example provided in the request:**
+
+```json
+{
+  "id": 1234567890123456,
+  "category": 1,
+  "title": "ירי רקטות וטילים",
+  "data": ["אבירים", "פסוטה"],
+  "desc": "היכנסו למרחב המוגן ושהו בו 10 דקות",
+  "alertDate": "2024-07-25 10:30:00",
+}
+```
+
+#### Using the MQTT Event in Home Assistant Automations
+
+To trigger Home Assistant automations based on these MQTT messages, configure an MQTT trigger subscribing to the topic the script publishes to (`home/YOUR_SENSOR_NAME/event` by default, or your custom topic).
+
+Ensure the MQTT integration is configured in Home Assistant.
+
+```yaml
+# Example automation added to automations.yaml or configured via the UI
+automation:
+  - alias: Respond to MQTT Alert
+    # Trigger when a message arrives on the specified MQTT topic
+    trigger:
+      platform: mqtt
+      topic: "home/red_alert/event" # Match the script's publish topic (replace red_alert if needed)
+    action:
+      # Example Action: Send a notification using data from the JSON payload
+      - service: notify.your_notification_service # Replace with your actual notification service entity ID
+        data:
+          title: "🚨 MQTT Alert!"
+          # Access payload data using trigger.payload_json.<key>
+          # Note: Access keys match the JSON payload structure above (data, desc, alertDate)
+          message: >
+            {% set data = trigger.payload_json %}
+            {{ data.title }} in {{ data.data | join(', ') }}
+            [{{ as_timestamp(data.alertDate) | timestamp_custom('%H:%M:%S', true) }}]
+            {{ data.desc }}
+
+      # Add other actions like playing TTS, etc.
+```
+This setup allows you to leverage the detailed JSON payload sent over MQTT directly within your Home Assistant automations, providing flexibility for advanced logic or integrating with other systems.
+
+</details>
+
+### History & Backup Files
+
+<details>
+<summary>History and Backup File Details</summary>
+
+If `save_2_file` is enabled, the script manages several files in the Home Assistant `/config/www` directory. This allows you to access historical alert data and maintain the last known alert state across AppDaemon restarts. The `/config/www` directory is typically mapped to `http://YOUR_HA_IP:8123/local/` in Home Assistant.
+
+1.  **`YOUR_SENSOR_NAME_history.txt`**: This file is appended with a summary of each *completed* alert window (when the main sensor state transitions back to `off`). The summary includes the date, time, alert type, areas, and cities.
+2.  **`YOUR_SENSOR_NAME_history.csv`**: This file is appended with structured data for each *completed* alert window. It includes columns for ID, Day, Date, Time, Title, City Count, Areas, Cities (string), Description, and Number of Payloads in the window. This format is suitable for importing into spreadsheet software for analysis. The CSV header is automatically created if the file doesn't exist or is empty on startup.
+3.  **`YOUR_SENSOR_NAME_history.json`**: This file is a simple backup of the *last received alert payload's core data*. It is saved to help the script restore the `prev_*` attributes of the sensors after AppDaemon restarts, providing some state persistence. It does **not** store the full history list.
+4.  **`YOUR_SENSOR_NAME_latest.geojson`**: (See Map section) Stores GeoJSON point data for the cities in the *currently active* alert window.
+5.  **`YOUR_SENSOR_NAME_24h.geojson`**: (See Map section) Stores GeoJSON point data for distinct alert *events* within the history window (`hours_to_show`).
+
+The TXT and CSV history files summarize incidents *after* the main sensor resets to `off` (i.e., after the `timer` duration has passed and no new alerts were detected). The JSON backup is primarily for restoring the `prev_*` attributes on startup.
+
+You can access these files directly via your browser using URLs like `http://YOUR_HOME_ASSISTANT_IP:8123/local/YOUR_SENSOR_NAME_history.txt`.
+</details>
+
+---
+
+## Script Status
+![image](https://github.com/user-attachments/assets/7ec3d3ee-7bdf-4846-84a3-e5f49b83de6e)
+
+<details>
+<summary>Markdown Card YAML</summary>
+
+```yaml
+# Replace 'red_alert' with your configured sensor_name if different.
 type: markdown
-content: >-
+content: |
+   {% set status = state_attr('binary_sensor.red_alert', 'script_status') %} {# Adjust if needd #} 
+   {% if status == 'running' or status == 'idle' %}
+   <ha-alert alert-type="success">Script status: {{ status }}</ha-alert>
+   {% elif status == 'initializing' %}
+   <ha-alert alert-type="info">Script status: {{ status }}</ha-alert>
+   {% else %}
+   <ha-alert alert-type="error">Script status: {{ status }} (Check appdaemon log)</ha-alert>
+   {% endif %}
+```
+</details>
+
+## History Markdown Example
+
+This example provides YAML code for a Home Assistant Markdown card that displays recent alert history grouped by alert type and area, leveraging the data available in the `sensor.YOUR_SENSOR_NAME_history_group` sensor's attributes.
+
+![History Markdown Card Example](https://github.com/user-attachments/assets/60e6b1d5-bfca-421c-8f5e-840ca95bc917)
+
+<details>
+<summary>Markdown Card YAML</summary>
+
+```yaml
+# Replace 'red_alert' with your configured sensor_name if different.
+type: markdown
+content: |
   {% set show_history = True %}
-
-  {% set show_info = True %} 
-
-  {% set alerts = state_attr('binary_sensor.red_alert',
-  'last_24h_alerts_group') %}
-
+  {% set show_info = True %}
+  {% set alerts = state_attr('sensor.red_alert_history_group', 'last_24h_alerts_group') %}
   {% set oref = states('binary_sensor.red_alert') %}
-
-  <table width=100%><tr><td align=center>
-
+  <table width=100%>
+  <tr><td align=center>
   {% if oref == 'on' %}
-
-  # <font color = red>{{ state_attr('binary_sensor.red_alert', 'prev_title')
-  }}</font> {{ state_attr('binary_sensor.red_alert', 'emoji') }}
-
+  # <font color="red">{{ state_attr('binary_sensor.red_alert', 'title') }}</font> {{ state_attr('binary_sensor.red_alert', 'emoji') }}
   </td></tr>
-
-  <tr><td align=center><big><big>
-
-  <b>{{ state_attr('binary_sensor.red_alert', 'alert_txt') }}</b></big></big>
-
+  <tr><td align=center>
+  <big><big><b>{{ state_attr('binary_sensor.red_alert', 'alert_txt') }}</b></big></big>
   {% else %}
-
-  ## <font color=green>אין התרעות</font> ✅{% endif %}
-
-  </td></tr></table>
-
+  ## <font color="green">אין התרעות</font> ✅
+  {% endif %}
+  </td></tr>
+  </table>
   {% set current_date = now().date() %}
+  {# Check if prev_last_changed attribute exists and is in expected ISO format before parsing #}
+  {% if state_attr('binary_sensor.red_alert', 'prev_last_changed') is string and state_attr('binary_sensor.red_alert', 'prev_last_changed') | regex_match("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?([+-]\\d{2}:\\d{2}|Z)?$") %}
+    {% set last_changed_str = state_attr('binary_sensor.red_alert', 'prev_last_changed') %}
+    {# Attempt parsing with fromisoformat, fallback to as_timestamp if needed or problematic #}
+    {% set last_changed_dt = last_changed_str | as_datetime(with_tz=True) | default(last_changed_str | as_datetime) | default(None) %}
 
-  {% if state_attr('binary_sensor.red_alert', 'prev_last_changed') |
-  regex_match("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\d{2}:\d{2}.\d+$") %}
+    {% if last_changed_dt %}
+      {# Ensure datetime is naive for date comparison if needed, or use UTC #}
+      {% set last_changed_dt_naive = last_changed_dt | as_local %} # Convert to local time for display/comparison
 
-  {% set last_changed_timestamp = state_attr('binary_sensor.red_alert',
-  'prev_last_changed') | as_timestamp %}
+      <center>התרעה אחרונה נשלחה
+      {% set time_difference = (now() - last_changed_dt_naive).total_seconds() %}
 
-  {% if current_date == (last_changed_timestamp | timestamp_custom('%Y-%m-%d',
-  true) | as_datetime).date() %}
-
-  {% set current_timestamp = now().timestamp() %}
-
-  {% set time_difference = current_timestamp - last_changed_timestamp %}
-
-  <center>התרעה אחרונה נשלחה {% if time_difference < 3600 %} לפני {{
-  (time_difference / 60) | int }} דקות
-
-  {% elif time_difference < 86400 %}היום בשעה {{ last_changed_timestamp |
-  timestamp_custom('%H:%M', true) }}
-
-  {% else %}בתאריך {{ last_changed_timestamp | timestamp_custom('%d/%m/%Y',
-  true) }}, בשעה {{ last_changed_timestamp | timestamp_custom('%H:%M', true) }}
-
-  {% endif %}{% endif %}{% endif %}
-
-  </ha-alert>
-
-  {% if alerts and show_history %}
-
-  {% if show_info %}
+      {% if time_difference < 60 %}
+      לפני פחות מדקה
+      {% elif time_difference < 3600 %}
+      לפני {{ (time_difference / 60) | int }} דקות
+      {% elif time_difference < 86400 and last_changed_dt_naive.date() == now().date() %}
+      היום בשעה {{ last_changed_dt_naive | timestamp_custom('%H:%M', true) }}
+      {% else %}
+      בתאריך {{ last_changed_dt_naive | timestamp_custom('%d/%m/%Y', true) }}, בשעה {{ last_changed_dt_naive | timestamp_custom('%H:%M', true) }}
+      {% endif %}
+      </center>
+    {# else %} {# Optional: Log if parsing failed #}
+      {# <center> שגיאה בעיבוד זמן התרעה אחרונה </center> #}
+    {% endif %}
+  {% endif %}
 
   <hr>
-
+  {% if alerts and show_history %}
+  {% if show_info %}
   <table width=100%>
-
   <tr><td align=center>
-
-  {{ state_attr('binary_sensor.red_alert', 'cities_past_24h') | length }}
-  :ערים</td>
-
-  <td align=center> 
-
-  {{ state_attr('binary_sensor.red_alert', 'last_24h_alerts') | length }}
-  :התרעות</td></tr>
-
-  <tr>
-
-  <td colspan=2 align=center>
-
-  במהלך 24 שעות אחרונות 
-
-  </td>
-
-  </tr>
-
+  {{ state_attr('sensor.red_alert_history_cities', 'cities_past_24h') | length }} :ערים</td>
+  <td align=center>
+  {{ state_attr('sensor.red_alert_history_list', 'last_24h_alerts') | length }} :התרעות</td></tr>
   <tr><td colspan=2><hr></td></tr>
-
   </table>
-
   {% endif %}
-
   <table width=100% align=center>
-
   {% for alert_type, areas in alerts.items() %}
-
-  <tr>
-
-  <td></td>
-
-  </tr>
-
-  <tr>
-
-  <td colspan=6 align=center><h2><font color=blue>{{ alert_type }}</font></h2>
-
-  <hr></td>
-
-  </tr>
-
+  <tr><td colspan=3 align=center><h2><font color="blue">{{ alert_type }}</font></h2><hr></td></tr> {# Adjusted colspan for 3 columns #}
   {% for area, cities in areas.items() %}
-
+  <tr><td colspan=3 align=center><big><b>{{ area }}</b></big></td></tr> {# Adjusted colspan #}
+  {% set unique_cities = [] %}
+  {% for city_pair in cities|batch(2) %} {# Iterating in batches of 2 for side-by-side display #}
   <tr>
-
-  <td></td>
-
+    <td align=right valign=top width=30%>{% if city_pair[0].time[:10] == (now() - timedelta(days=1)).strftime('%Y-%m-%d') %}
+      <font color="red">{{ city_pair[0].city }}</font> {# Use city_pair[0].city #}
+    {% else %}
+      {{ city_pair[0].city }} {# Use city_pair[0].city #}
+    {% endif %}
+    </td>
+    <td valign=top width=10%> - </td>
+    <td valign=top width=60%>{{ city_pair[0].time[:5] }}</td> {# Use city_pair[0].time #}
   </tr>
-
-  <tr>
-
-  <td colspan=6 align=center><big><b>{{ area }}</b></big></td></tr>
-
-  <tr>
-
-  <td colspan=6></td>
-
-  </tr>
-
-  {% for city_pair in cities|batch(2) %}
-
-  <tr><td align=right valign=top>{{ city_pair[0].city }}</td>
-
-  <td valign=top> - </td><td valign=top>{{ city_pair[0].time[11:16] }}</td>{% if
-  city_pair|length > 1 %} 
-
-  <td align=right valign=top>{{ city_pair[1].city }}</td>
-
-  <td valign=top> - </td><td valign=top>{{ city_pair[1].time[11:16] }}{% else
-  %}</td>{% endif %}</tr>
-
+  {# Removed logic for second city in batch as layout is now single column per row for cities/times #}
   {% endfor %}
-
-  <tr>
-
-  <td colspan=6>&nbsp;</td>
-
-  </tr>
-
   {% endfor %}
-
   {% endfor %}
-
   </table>
-
-  {% else %}
-
   {% endif %}
-
 ```
 
-
-> [!TIP]
-> Use this trigger in automation `{{ (as_timestamp(now()) - as_timestamp(states.binary_sensor.red_alert.last_updated)) > 30 }}` to know when the script fails to run.
-> 
-> You can also create a specialHis markdown card to track the sensor:
-> 
-> ![runs](https://github.com/idodov/RedAlert/assets/19820046/ba01b903-7cd8-4549-9859-8081d8f11712)
-```yaml
-type: markdown
-content: >-
-  {% set status = (as_timestamp(now()) -
-  as_timestamp(states.binary_sensor.red_alert.last_updated)) < 30 %}
-  {% if status %}
-  <ha-alert alert-type="info">Run **{{ state_attr('binary_sensor.red_alert', 'count') }}** times since restart
-  {% else %}
-  <ha-alert alert-type="warning">**SCRIPT IS NOT RUNNING!!!**
-  {% endif %}
-  </ha-alert>
-```
-
-## binary_sensor.red_alert Attribues
-You can use any attribue from the sensor. For example, to show the title on lovelace card, use this code syntax: 
-```{{ state_attr('binary_sensor.red_alert', 'title') }}```
-| Attribute name | Means | Example |
-| ----- | ----- | ----- |
-| `active_now' | `on` when there is a live alert, `off` when there is no live alerts | `off` |
-| `count` | Counts the number of times the script has run since the last restart of Home Assistant. By monitoring this data, you can determine if and when the script is not running. | `12345` |
-| `cat` | Category number. can be from 1 to 13 | `1` |
-| `title` | Attack type in text | `ירי רקטות וטילים` |
-| `data` | List of cities as string | `תל אביב - מרכז העיר` |
-| `cities` | List of cities that are attacked | `- קריית שמונה` |
-| `alerts_count` | Number of live alerts | `4` |
-| `my_cities` | The defined user cities | `- תל אביב - מרכז העיר` |
-| `areas` | List of areas as string | `גוש דן` |
-| `desc` | Explain what to do |  `היכנסו למרחב המוגן ושהו בו 10 דקות` |
-| `duration` | How many seconds to be in the safe room | `600` |
-| `id` | Id of the alert | `133413399870000000` |
-| `data_count` | Number of cities that are attacked | `1` |
-| `cities_past_24h` | List of cities that had attacked in the past 24 hours | `- שלומי` |
-| `last_24h_alerts` | List of all alerts in the past 24 hours | `title`, `city`, `area`, `time` |
-| `last_24h_alerts_group` | List of all 24 hours alerts grouped by title and area | `titile`, `area`, `city`, `time` |
-| `emoji` | Icon for type of attack | `🚀` |
-| `prev_*` | Last data from each attribue | Stores the most recent information when the sensor was active |
-| `alert` | One line full text  | `ירי רקטות וטילים ב־קו העימות - בצת, שלומי` |
-| `alert_alt` | Breaking line full text | ` ירי רקטות וטילים/n* קו העימות: בצת, שלומי` |
-| `alert_txt` | One line text | `קו העימות: בצת, שלומי` |
-| `alert_wa` | Optimize text message to send via whatsapp | ![whatsapp](https://github.com/idodov/RedAlert/assets/19820046/817c72f4-70b1-4499-b831-e5daf55b6220) |
-| `alert_tg` | Optimize text message to send via telegram |  |
-
-**Example:**
-```yaml
-count: 237
-id: 1234567890000000
-cat: 1
-title: ירי רקטות וטילים
-desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-data: אבירים, פסוטה
-areas: קו העימות
-data_count: 2
-duration: 600
-last_changed: "2024-03-29T20:18:36.354614"
-emoji: ⚠️
-icon_alert: mdi:alert
-prev_last_changed: "2024-03-29T20:18:36.354636"
-prev_cat: 1
-prev_title: ירי רקטות וטילים
-prev_desc: היכנסו למרחב המוגן ושהו בו 10 דקות
-prev_data: שלומי
-prev_data_count: 1
-prev_duration: 600
-prev_areas: קו העימות
-alert: "ירי רקטות וטילים ב־קו העימות: שלומי"
-alert_alt: |-
-  ירי רקטות וטילים
-   * קו העימות: שלומי
-alert_txt: "קו העימות: שלומי"
-alert_wa: |-
-  🚀 *ירי רקטות וטילים*
-  > קו העימות
-  שלומי
-
-  _היכנסו למרחב המוגן ושהו בו 10 דקות_
-friendly_name: All Red Alerts
-icon: mdi:alert
-alert_tg: |-
-  🚀 **ירי רקטות וטילים**
-  **__קו העימות__** — שלומי
-
-  __היכנסו למרחב המוגן ושהו בו 10 דקות__
-```
-# Usage *Red Alert* for Home Assistant
-## Map
-![{FF1A0EEA-8270-4D29-ACBC-3D0EEF065EE3}](https://github.com/user-attachments/assets/6834a827-0186-4b60-921c-f5918dc3bd1b)
-
-The script also creates two GeoJSON files automatically, which store the alert’s geolocation data and can be displayed on the Home Assistant map. Both files are located in the `\\homeassistant\config\www` directory. The `red_alert_24h.geojson` file stores data for alerts from the last 24 hours, and the `red_alert_latest.geojson` file stores the most recent alert data.
-
-**To display the data on the Home Assistant map:**
-1. Install the GeoJSON integration directly from the Home Assistant integration page.
-2. Add the GeoJSON URL: `http://homeassistant.local:8123/local/red_alert_24h.geojson`.
-3. Adjust the radius to cover the entire country area.
-   
-![{28E29F42-3F7F-4625-859B-587381F81941}](https://github.com/user-attachments/assets/23f2f200-28a9-49c1-82c7-79a00343f23c)
-> [!NOTE]
-> If the GeoJSON integration can't access the GeoJSON file, open the `configuration.yaml` file and add the necessary approval, like this:
-```yaml
-homeassistant:
-  allowlist_external_urls:
-    - http://192.168.86.174:8123      # YOUR HA IP
-    - http://homeassistant.local:8123
-  allowlist_external_dirs:
-    - "/config/www"
-```
-
-## History File
-The script stores the sensor data in a text file named `red_alert_history.txt` and `red_alert_history.csv`, both located in the `\\homeassistant\config\www` directory. Each time an alert (including test alerts) is triggered, the files gets updated. The dedicated CSV file can be opened in any spreadsheet application, such as Excel or Google Sheets.
- You can directly access these files from your browser using the provided URL: [ http://homeassistant.local:8123/local/red_alert_history.txt](http://homeassistant.local:8123/local/red_alert_history.txt).
-
-
-![red-alert-txt](https://github.com/idodov/RedAlert/assets/19820046/70e28cd2-2aee-4519-a0d6-6ac415c703e7)
-## Lovelace Card Example
-Displays whether there is an alert, the number of active alerts, and their respective locations.
-
-![TILIM](https://github.com/idodov/RedAlert/assets/19820046/f8ad780b-7e64-4c54-ab74-79e7ff56b780)
-```yaml
-type: markdown
-content: >-
-  <center><h3>{% if state_attr('binary_sensor.red_alert', 'data_count') > 0 %}
-  כרגע יש {% if state_attr('binary_sensor.red_alert', 'data_count') > 1 %}{{
-  state_attr('binary_sensor.red_alert', 'data_count') }} התרעות פעילות{% elif
-  state_attr('binary_sensor.red_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
-  endif %}{% else %} אין התרעות פעילות{% endif %}</h3>
-
-  {% if state_attr('binary_sensor.red_alert', 'data_count') > 0 %}<h2>{{
-  state_attr('binary_sensor.red_alert', 'emoji') }} {{
-  state_attr('binary_sensor.red_alert', 'title') }}</h2>
-  <h3>{{ state_attr('binary_sensor.red_alert', 'data') }}</h3>
-  **{{ state_attr('binary_sensor.red_alert', 'desc') }}** {% endif %} </center>
-title: Red Alert
-```
-Using this script, you have the flexibility to include additional information, such as the **precise time the alert was triggered**.
-
-![TILIMA](https://github.com/idodov/RedAlert/assets/19820046/4ba18dde-ae0c-4415-a55d-80ed0c010cbc)
-![LAST](https://github.com/idodov/RedAlert/assets/19820046/ae52bc94-46ba-4cdb-b92b-36220500ee48)
-```yaml
-type: markdown
-content: >-
-  <center><h3>{% if state_attr('binary_sensor.red_alert', 'data_count') > 0 %}
-  כרגע יש {% if state_attr('binary_sensor.red_alert', 'data_count') > 1 %}{{
-  state_attr('binary_sensor.red_alert', 'data_count') }} התרעות פעילות{% elif
-  state_attr('binary_sensor.red_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
-  endif %}{% else %} אין התרעות פעילות{% endif %}</h3>
-
-  {% if state_attr('binary_sensor.red_alert', 'data_count') > 0 %}<h2>{{
-  state_attr('binary_sensor.red_alert', 'emoji') }} {{
-  state_attr('binary_sensor.red_alert', 'title') }}</h2> <h3>{{
-  state_attr('binary_sensor.red_alert', 'data') }}</h3> **{{
-  state_attr('binary_sensor.red_alert', 'desc') }}** {% endif %}
-
-  {% if state_attr('binary_sensor.red_alert', 'last_changed') |
-  regex_match("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\d{2}:\d{2}.\d+$") %}
-
-  {% set last_changed_timestamp = state_attr('binary_sensor.red_alert',
-  'last_changed') | as_timestamp %}
-
-  {% set current_date = now().date() %}
-
-  {% if current_date == (last_changed_timestamp | timestamp_custom('%Y-%m-%d',
-  true)
-   | as_datetime).date() %}
-   ההתרעה האחרונה נשלחה היום בשעה {{ last_changed_timestamp | timestamp_custom('%H:%M', true) }}
-  {% else %}התרעה אחרונה נשלחה בתאריך {{ last_changed_timestamp |
-  timestamp_custom('%d/%m/%Y', true) }}, בשעה {{ last_changed_timestamp |
-  timestamp_custom('%H:%M', true) }}
-
-  {% endif %}
-  {% endif %}
-  </center>
-```
-**Another nicer way:**
-
-![3333](https://github.com/idodov/RedAlert/assets/19820046/438c0870-56e8-461b-a1e5-aa24122a71bc)
-![000000](https://github.com/idodov/RedAlert/assets/19820046/2d6da8d4-2f84-46d4-9f52-baffdbd4b54b)
-```yaml
-type: markdown
-content: >-
-  <ha-icon icon="{{ state_attr('binary_sensor.red_alert', 'icon')
-  }}"></ha-icon> {% if state_attr('binary_sensor.red_alert', 'data_count') > 0
-  %}כרגע יש {% if state_attr('binary_sensor.red_alert', 'data_count') > 1 %}{{
-  state_attr('binary_sensor.red_alert', 'data_count') }} התרעות פעילות{% elif
-  state_attr('binary_sensor.red_alert', 'data_count') == 1 %} התרעה פעילה אחת{%
-  endif %}{% else %}אין התרעות פעילות{% endif %}{% if
-  state_attr('binary_sensor.red_alert', 'data_count') > 0 %}
-
-  <ha-alert alert-type="error" title="{{ state_attr('binary_sensor.red_alert',
-  'title') }}">{{ state_attr('binary_sensor.red_alert', 'data') }}</ha-alert>
-
-  <ha-alert alert-type="warning">{{ state_attr('binary_sensor.red_alert',
-  'desc') }}</ha-alert>
-
-  {% endif %}
-
-  {% if state_attr('binary_sensor.red_alert', 'last_changed') |
-  regex_match("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\d{2}:\d{2}.\d+$") %}
-
-  {% set last_changed_timestamp = state_attr('binary_sensor.red_alert',
-  'last_changed') | as_timestamp %}
-
-  {% set current_date = now().date() %}{% if current_date ==
-  (last_changed_timestamp | timestamp_custom('%Y-%m-%d', true)
-   | as_datetime).date() %}<ha-alert alert-type="info">ההתרעה האחרונה נשלחה היום בשעה {{ last_changed_timestamp | timestamp_custom('%H:%M', true) }}
-  {% else %}התרעה אחרונה נשלחה בתאריך {{ last_changed_timestamp |
-  timestamp_custom('%d/%m/%Y', true) }}, בשעה {{ last_changed_timestamp |
-  timestamp_custom('%H:%M', true) }}{% endif %}{% endif %}</ha-alert>
-```
-## Automation Examples
-You have the flexibility to generate various automated actions triggered by the binary sensor or its subsidiary sensors. As an example, one potential application is to dispatch alert messages to a LED matrix screen (in  pic: forwarding all alerts to the Ulanzi Smart Clock, which is based on ESPHome32 and features a screen).
-
-![20231013_210149](https://github.com/idodov/RedAlert/assets/19820046/0f88c82c-c87a-4933-aec7-8db425f6515f)
-
-### Send a notification to the phone (Home Assistant app) when there is an alert in Israel (all cities)
-*(Change ```#your phone#``` to your entity name)*
-```yaml
-alias: Notify attack
-description: "Real-time Attack Notification"
-trigger:
-  - platform: state
-    entity_id:
-      - binary_sensor.red_alert
-    from: "off"
-    to: "on"
-condition: []
-action:
-  - service: notify.mobile_app_#your phone#
-    data:
-      message: "{{ state_attr('binary_sensor.red_alert', 'data') }}"
-      title: "{{ state_attr('binary_sensor.red_alert', 'title') }} {{ state_attr('binary_sensor.red_alert', 'areas') }}"
-mode: single
-```
-### Change the light color when there is an active alert in your city
-As another illustration, you can configure your RGB lights to change colors repeatedly while the alert is active.
-
-![20231013_221552](https://github.com/idodov/RedAlert/assets/19820046/6e60d5ca-12a9-4fd2-9b10-bcb19bf38a6d)
-
-*(Change ```light.#light-1#``` to your entity name)*
-```yaml
-alias: Alert in city
-description: "When an alert occurs in your define city, the lights will cyclically change to red and blue for a duration of 30 seconds, after which they will revert to their previous states"
-trigger:
-- platform: state
-  entity_id:
-    - binary_sensor.red_alert_city
-  from: "off"
-  to: "on"
-condition: []
-action:
-  - service: scene.create
-    data:
-      scene_id: before_red_alert
-      snapshot_entities:
-        - light.#light-1#
-        - light.#light-2#
-        - light.#light-3#
-  - repeat:
-      count: 30
-      sequence:
-        - service: light.turn_on
-          data:
-            color_name: blue
-          target:
-            entity_id: 
-            - light.#light-1#
-            - light.#light-2#
-            - light.#light-3#
-        - delay:
-            hours: 0
-            minutes: 0
-            seconds: 0
-            milliseconds: 500
-        - service: light.turn_on
-          data:
-            color_name: red
-          target:
-            entity_id: 
-            - light.#light-1#
-            - light.#light-2#
-            - light.#light-3#
-        - delay:
-            hours: 0
-            minutes: 0
-            seconds: 0
-            milliseconds: 500
-  - service: scene.turn_on
-    data: {}
-    target:
-      entity_id: scene.before_red_alert
-mode: single
-```
-### Get notification When it's safe
-The "desc" attribute provides information on the duration in minutes for staying inside the safe room. This automation will generate a timer based on the data from this attribute.
-Before implementing this automation, it's essential to create a TIMER helper.
-1. Create a new **TIMER helper**. You can generate a new timer entity within the user interface under **'Settings' > 'Devices and Services' > 'Helpers' > 'Create Helper' > 'Timer'**
-2. Name it "**Red Alert**".
-3. Create automation with your desire trigger, 
-**for example:** *(change ```#your phone#``` to your entity name)*
-```yaml
-Alias: Safe to go out
-description: "Notify on phone that it's safe to go outside"
-mode: single
-trigger:
-  - platform: template
-    value_template: >-
-      {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.red_alert',
-      'data').split(', ') }}
-condition: []
-action:
-  - service: timer.start
-    data:
-      duration: >-
-        {{ state_attr('binary_sensor.red_alert_city', 'duration') }}
-    target:
-      entity_id: timer.red_alert
-  - service: notify.mobile_app_#your phone#
-    data:
-      title: ההתרעה הוסרה
-      message: אפשר לחזור לשגרה
-```
-## Creating Sub Sensors
-While you need to specify the cities in which the secondary binary sensor will be activated, you also have the flexibility to define additional sub-sensors based on the main sensor. Here are a few examples of how you can do this.
-> [!NOTE]
-> To create a sensor that activates only when an attack occurs in a specific city that has similar character patterns in other city names, you should use the following approach. For example, if you want to create a sensor that activates when **only** "יבנה" and **not** "גן יבנה" is attacked, you can use the following code syntax.
-> If you want to trigger a specific area, use the SPLIT function and make sure to type the city name and area **exactly** as they appear in https://www.oref.org.il/12481-he/Pakar.aspx
-> ```
-> {{ "תל אביב - מרכז העיר" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
-> ```
-#### Yavne city and not Gan-Yavne city
-```
-{{ "יבנה" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
-```
-#### Multiple cities or city areas
-```
-{{ "אירוס" in state_attr('binary_sensor.red_alert', 'data').split(', ')
- or "בית חנן" in state_attr('binary_sensor.red_alert', 'data').split(', ')
- or "גן שורק" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
-```
-### Cities With Multiple Zones:
-In cities with multiple zones, relying solely on the SPLIT function won't be effective if you've only defined the city name. If you need a sensor that triggers for all zones within the 11 cities divided into multiple alert zones, it's advisable to utilize the SEARCH_REGEX function instead of splitting the data.
-```
-{{ state_attr('binary_sensor.red_alert', 'data') | regex_search("תל אביב") }} 
-```
-### Metropolitan Areas
-Israel is segmented into 30 metropolitan areas, allowing you to determine the general status of nearby towns without the need to specify each one individually. To achieve this, you can utilize the "areas" attribute. Here's the list of the 30 metropolitan areas in Israel, presented in alphabetical order:
-
-אילת, בקעה, בקעת בית שאן, גוש דן, גליל עליון, גליל תחתון, דרום הגולן, דרום הנגב, הכרמל, המפרץ, העמקים, השפלה, ואדי ערה, יהודה, ים המלח, ירושלים, ירקון, לכיש,  מנשה, מערב הנגב, מערב לכיש, מרכז הגליל, מרכז הנגב, עוטף עזה, 
-ערבה, צפון הגולן, קו העימות, שומרון, שפלת יהודה ושרון
-```
-{{ "גוש דן" in state_attr('binary_sensor.red_alert', 'areas').split(', ') }}
-```
-### Red Alert Trigger for Particular Type of Alert:
-The **'cat'** attribute defines the alert type, with a range from 1 to 13. You have the option to set up a binary sensor for a particular type of alert with or without any city or area of your choice.
-| Cat (number) | Type of Alert |
-| ---- | --- |
-| 1 | Missle Attack |
-| 6 | Unauthorized Aircraft Penetration |
-| 13 | Infiltration of Terrorists |
-
-**Trigger for Automation**
-```
-{{ state_attr('binary_sensor.red_alert', 'cat') == '6' }}
-```
-***Sample trigger alert for unauthorized aircraft penetration in Nahal-Oz***
-```yaml
-{{ state_attr('binary_sensor.red_alert', 'cat') == '6'
-and "נחל עוז" in state_attr('binary_sensor.red_alert', 'data').split(', ') }}
-```
+</details>
