@@ -363,40 +363,6 @@ To trigger automations on *each new alert payload* (not just the `off` to `on` s
 
 A particularly useful attribute is `special_update`. PIKUD HA-OREF sometimes sends specific informational updates (like "Alert will trigger soon") which the script flags by setting this attribute to `true`. You can create binary sensors that turn `on` specifically when the `special_update` attribute becomes `true` on the main or city sensor:
 
-<details>
-<summary>Example Template Binary Sensors for "Special Update" (add to 'configuration.yaml')</summary>
-
-You can then use these `special_update` sensors as triggers in your Home Assistant automations to react specifically to these types of informative alerts from the Home Front Command.
-
-You could also create a template sensor that triggers on *any* attribute.
-```yaml
-# Add this block to your configuration.yaml file
-# You may need to adjust the entity IDs (e.g., binary_sensor.red_alert)
-# if you configured a different sensor_name.
-
-binary_sensor:
-  # This sensor turns ON when a 'special_update' alert payload
-  # is received by the script, regardless of affected area.
-  - platform: template
-    sensors:
-      red_alert_special_update: # Choose a unique entity ID name
-        friendly_name: "Red Alert Special Update"
-        value_template: "{{ state_attr('binary_sensor.red_alert', 'special_update') == true }}"
-
-  # Optional: This sensor turns ON when a 'special_update' alert payload
-  # is received AND it affects one of your configured cities.
-  - platform: template
-    sensors:
-      red_alert_city_special_update: # Choose a unique entity ID name
-        friendly_name: "My City Special Alert Update"
-        value_template: "{{ state_attr('binary_sensor.red_alert_city', 'special_update') == true }}"
-
-```
-
-</details>
-
----
-
 ### Lovelace Card Example
 
 You can add the entities to your dashboard using various cards. Here's a simple example using a Vertical Stack card:
