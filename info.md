@@ -1,12 +1,8 @@
 # Installation Instructions
 1. Install the **AppDaemon** addon in Home Assistant by going to Settings > Add-ons > Ad-on-store and search for **AppDaemon**.
 2. Once AppDaemon is installed, enable the **Auto-Start** and **Watchdog** options.
-3. Go to the AppDaemon ***configuration*** page and add ```requests``` ***Python package*** under the Python Packages section.
-
-![Capture1](https://github.com/idodov/RedAlert/assets/19820046/d4e3800a-a59b-4605-b8fe-402942c3525b)
-
-4. **Start** the add-on
-5. In file editor open **\addon_configs\appdaemon\appdaemon.yaml** and make the changes under *appdeamon* section as described:
+3. **Start** the add-on
+4. In file editor open **\addon_configs\appdaemon\appdaemon.yaml** and make the changes under *appdeamon* section as described:
 > [!IMPORTANT]
 > You can locate your own coordinates (latitude & longitude) here: https://www.latlong.net/
 > *  `latitude: 31.9837528`
