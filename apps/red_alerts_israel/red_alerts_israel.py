@@ -1756,7 +1756,7 @@ class Red_Alerts_Israel(Hass):
 
         # --- 8. Construct Final Attributes ---
         # Use info generated in step 6 and prev_state_attrs from step 7
-        special_update = True if cat == 13 else False
+        special_update = True if cat == 13 and "חדירת מחבלים" not in title else False
         final_attributes = {
             "active_now": True,
             "special_update": special_update, # Is it advanced alert
@@ -2100,7 +2100,7 @@ class Red_Alerts_Israel(Hass):
         attributes["last_changed"] = datetime.now().isoformat(timespec='microseconds')
         # Determine status based on main state
         attributes["script_status"] = "running" #if main_state == "on" else "idle"
-        pre_alert = True if attributes["cat"] == 13 else False
+        pre_alert = True if attributes["cat"] == 13 and "חדירת מחבלים" not in attributes["title"] else False
 
         update_tasks = []
         log_prefix = "[HA Update]"
