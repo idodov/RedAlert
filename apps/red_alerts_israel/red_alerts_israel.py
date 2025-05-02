@@ -67,7 +67,7 @@ ICONS_AND_EMOJIS = {
     3: ("mdi:earth-box", "🌍"), 4: ("mdi:chemical-weapon", "☢️"), 5: ("mdi:waves", "🌊"),
     6: ("mdi:airplane", "🛩️"), 7: ("mdi:skull", "💀"), 8: ("mdi:alert", "❗"),
     9: ("mdi:alert", "❗"),   10:("mdi:alert","❗"),   11:("mdi:alert","❗"),
-    12:("mdi:alert","❗"),    13:("mdi:alert-circle","🚨"), 14:("mdi:alert", "❗")
+    12:("mdi:alert","❗"),    13:("mdi:run-fast","👹"), 14:("mdi:alert", "❗"), 15: ("mdi:alert-circle-Outline", "⭕")
 }
 DAY_NAMES = {
     'Sunday': 'יום ראשון', 'Monday': 'יום שני', 'Tuesday': 'יום שלישי',
@@ -1756,7 +1756,10 @@ class Red_Alerts_Israel(Hass):
 
         # --- 8. Construct Final Attributes ---
         # Use info generated in step 6 and prev_state_attrs from step 7
-        special_update = True if cat == 13 and "חדירת מחבלים" not in title else False
+        #special_update = True if cat == 13 else False
+        # בדקות הקרובות צפויות להתקבל התרעות באזורך
+        special_update = True if "בדקות הקרובות" in title or "עדכון" in title else False
+
         final_attributes = {
             "active_now": True,
             "special_update": special_update, # Is it advanced alert
@@ -1793,6 +1796,10 @@ class Red_Alerts_Israel(Hass):
             "prev_special_update": prev_state_attrs.get("special_update"),
             "script_status": "running"
         }
+
+        if special_update:
+            final_attributes["icon"] = "mdi:Alarm-Light-Outline"
+            final_attributes["emoji"] = "🔜"
 
         # --- 9. Check Attribute Size Limit ---
         try:
@@ -2100,7 +2107,9 @@ class Red_Alerts_Israel(Hass):
         attributes["last_changed"] = datetime.now().isoformat(timespec='microseconds')
         # Determine status based on main state
         attributes["script_status"] = "running" #if main_state == "on" else "idle"
-        pre_alert = True if attributes["cat"] == 13 and "חדירת מחבלים" not in attributes["title"] else False
+        #pre_alert = True if attributes["cat"] == 13 and "חדירת מחבלים" not in attributes["title"] else False
+        pre_alert = True if "בדקות הקרובות" in attributes.get("title", "") or "עדכון" in attributes.get("title", "") else False
+        
 
         update_tasks = []
         log_prefix = "[HA Update]"
