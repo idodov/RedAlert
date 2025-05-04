@@ -66,7 +66,7 @@ ICONS_AND_EMOJIS = {
     0: ("mdi:alert", "❗"),   1: ("mdi:rocket-launch", "🚀"), 2: ("mdi:home-alert", "⚠️"),
     3: ("mdi:earth-box", "🌍"), 4: ("mdi:chemical-weapon", "☢️"), 5: ("mdi:waves", "🌊"),
     6: ("mdi:airplane", "🛩️"), 7: ("mdi:skull", "💀"), 8: ("mdi:alert", "❗"),
-    9: ("mdi:alert", "❗"),   10:("mdi:alert","❗"),   11:("mdi:alert","❗"),
+    9: ("mdi:alert", "❗"),   10:("mdi:Home-Alert","⚠️"),   11:("mdi:alert","❗"),
     12:("mdi:alert","❗"),    13:("mdi:run-fast","👹"), 14:("mdi:alert", "❗"), 15: ("mdi:alert-circle-Outline", "⭕")
 }
 DAY_NAMES = {
@@ -416,14 +416,8 @@ class AlertProcessor:
         try:
             text_len = len(text)
             if text_len > max_len:
-                # Ensure areas string is not overly long itself for the message
-                safe_areas = areas if len(areas) < 1400 else areas[:1400] + "..."
-                self._log(f"Truncating {context} ({text_len} chars > {max_len}). Count: {count}, Areas: {safe_areas}", level="WARNING")
-                # More concise truncation message
-                trunc_msg = f"... [קוצץ - {count} ערים]"
-                keep_len = max_len - len(trunc_msg)
-                if keep_len < 0: keep_len = 0 # Handle edge case
-                return text[:keep_len] + trunc_msg
+                small_text = f"מתקפה מורחבת על {count} ערים באזורים הבאים: {areas}"
+                return small_text
         except Exception as e:
             self._log(f"Error during _check_len for {context}: {e}", level="ERROR")
         return text
@@ -702,11 +696,13 @@ class HistoryManager:
             if not isinstance(alert, dict):
                 self._log(f"Restructure: Skipping non-dict item: {type(alert)}", level="WARNING")
                 continue
-
-            title = alert.get('title', 'לא ידוע')
+            
+            original_title = alert.get('title', 'לא ידוע')
             area  = alert.get('area', DEFAULT_UNKNOWN_AREA)
             city  = alert.get('city', 'לא ידוע')
             time_str = alert.get('time', '') # String time from previous step
+
+            title = "התרעות מקדימות" if original_title == "בדקות הקרובות צפויות להתקבל התרעות באזורך" else original_title
 
             time_display = "??:??:??" # Default
             if isinstance(time_str, str) and ' ' in time_str and ':' in time_str:
@@ -730,61 +726,75 @@ class HistoryManager:
 
         return structured_data
 
+        # Inside the HistoryManager class...
+
     def get_history_attributes(self) -> dict:
         """
         Generates attributes for history sensors, applying time-based pruning (hours_to_show)
-        and deduplication based on timer_duration_seconds per city/title/area.
+        and merging duplicates based on a 10-minute window per city, keeping the latest entry.
+        Returns data using the original expected keys: 'cities_past_24h', 'last_24h_alerts', 'last_24h_alerts_group'.
         """
         # === Step 1: Pruning based on 'hours_to_show' ===
         now = datetime.now()
         cutoff = now - timedelta(hours=self._hours_to_show)
+        # Filter list, ensuring time is valid datetime and >= cutoff
+        # Assumes self._history_list is sorted newest-first (maintained by update_history)
         pruned_history_list = [
             a for a in self._history_list
             if isinstance(a.get('time'), datetime) and a['time'] >= cutoff
         ]
 
-        # === Step 2: Apply deduplication based on 'timer_duration_seconds' ===
-        filtered_history_with_dt = [] # Stores dicts with datetime objects
-        last_kept_time_per_key = {} # Tracks {'title', 'city', 'area'} -> last_kept_datetime
-        self._log(f"History Attrs Step 2: Applying deduplication (on {len(pruned_history_list)} entries) using {self._timer_duration_seconds}s threshold...", level="DEBUG")
+        # === Step 2: Apply NEW merging logic (10-minute window per city, keep latest) ===
+        merged_history_newest_first = [] # Stores dicts with datetime objects, newest first
+        time_of_last_added_alert_for_city = {} # Tracks {'city_name'} -> last_kept_datetime
+        merge_window = timedelta(minutes=10) # Define the 10-minute window
 
-        # Create timedelta object once for comparison
-        deduplication_threshold = timedelta(seconds=self._timer_duration_seconds)
+        # self._log(f"History Attrs Step 2: Applying 10-min merge logic (on {len(pruned_history_list)} entries)...", level="DEBUG")
 
-        # Iterate backwards (oldest first in reversed list) to keep the *first* occurrence
-        for alert in reversed(pruned_history_list):
+        # Iterate newest first (list is already sorted this way)
+        for alert in pruned_history_list:
             # Basic validation of the alert structure
             if not isinstance(alert, dict) or not all(k in alert for k in ['title', 'city', 'area', 'time']):
-                self._log(f"Deduplication: Skipping malformed/incomplete entry: {alert}", level="WARNING")
+                self._log(f"Merge Logic: Skipping malformed/incomplete entry: {alert}", level="WARNING")
                 continue
             if not isinstance(alert['time'], datetime):
-                self._log(f"Deduplication: Skipping entry with non-datetime time: {alert}", level="WARNING")
+                self._log(f"Merge Logic: Skipping entry with non-datetime time: {alert}", level="WARNING")
                 continue
 
-            key = (alert['title'], alert['city'], alert['area'])
+            city_name = alert['city'] # Use the original city name stored in history
             alert_time = alert['time']
 
-            if key in last_kept_time_per_key:
-                if alert_time - last_kept_time_per_key[key] < deduplication_threshold:
-                    # This alert is "too close" to the one we already decided to keep. Skip it.
+            if city_name in time_of_last_added_alert_for_city:
+                last_added_time = time_of_last_added_alert_for_city[city_name]
+                # Check if this alert is within 10 minutes *before* the last one added
+                if last_added_time - alert_time < merge_window:
+                    # This alert is within 10 mins of the newer one already kept for this city.
+                    # Discard this one (effectively removing duplicates/older categories within the window).
+                    # self._log(f"Merge Logic: Discarding '{city_name}' at {alert_time} (within 10min of newer kept entry at {last_added_time})", level="DEBUG")
                     continue
                 else:
-                    # This alert is >= threshold seconds after the one we kept.
-                    # Based on "keep only the first", we still skip it.
-                    continue
+                    # This alert is older than 10 mins from the last *added* one for this city.
+                    # It represents a distinct event block. Keep it.
+                    merged_history_newest_first.append(alert)
+                    # Update the tracking time to this alert's time, as it's the latest for this older block
+                    time_of_last_added_alert_for_city[city_name] = alert_time
+                    # self._log(f"Merge Logic: Keeping '{city_name}' at {alert_time} (distinct block, older than 10min from {last_added_time})", level="DEBUG")
 
             else:
-                # First time seeing this key while iterating oldest-first. Keep it.
-                filtered_history_with_dt.append(alert)
-                last_kept_time_per_key[key] = alert_time 
+                # First time encountering this city in the iteration (i.e., the absolute newest entry for this city overall).
+                # Keep it and record its time.
+                merged_history_newest_first.append(alert)
+                time_of_last_added_alert_for_city[city_name] = alert_time
+                # self._log(f"Merge Logic: Keeping '{city_name}' at {alert_time} (newest encountered)", level="DEBUG")
 
-        filtered_history_with_dt.reverse()
+        merged_history_with_dt = list(merged_history_newest_first)
+        # self._log(f"History Attrs Step 2: Merge complete. Kept {len(merged_history_with_dt)} entries.", level="DEBUG")
 
-        # === Step 3: Format the filtered list for HA attributes ===
-        final_history_list_attr = [] 
-        filtered_cities_raw = set() 
+        # === Step 3: Format the filtered/merged list for HA attributes ===
+        final_history_list_for_ha = []
+        final_cities_set = set() # Collect unique city names from the final list
 
-        for a in filtered_history_with_dt:
+        for a in merged_history_with_dt: # Iterate through the merged list
             time_str = "N/A"
             try:
                 # Format the datetime object into 'YYYY-MM-DD HH:MM:SS'
@@ -797,22 +807,23 @@ class HistoryManager:
                 time_str = str(a.get('time', 'N/A'))
 
             city_name = a.get('city', 'לא ידוע')
-            final_history_list_attr.append({
+            final_history_list_for_ha.append({
                 'title': a.get('title', 'לא ידוע'),
                 'city': city_name,
                 'area': a.get('area', DEFAULT_UNKNOWN_AREA),
                 'time': time_str # The formatted string time
             })
-            filtered_cities_raw.add(city_name) # Add the original city name
+            final_cities_set.add(city_name) # Add the original city name
 
         # === Step 4: Restructure the formatted list for the grouped attribute ===
-        grouped_structure = self.restructure_alerts(final_history_list_attr)
+        # Uses the result of the merge+format process
+        final_grouped_structure = self.restructure_alerts(final_history_list_for_ha)
 
-        # === Step 5: Return the final attributes structure ===
+        # === Step 5: Return the final attributes structure using ORIGINAL keys ===
         return {
-            "cities_past_24h": sorted(list(filtered_cities_raw)), # Unique original city names
-            "last_24h_alerts": final_history_list_attr, # List of dicts with string time
-            "last_24h_alerts_group": grouped_structure # Grouped dict with HH:MM:SS time
+            "cities_past_24h": sorted(list(final_cities_set)), # Key expected by sensor updates
+            "last_24h_alerts": final_history_list_for_ha,      # Key expected by sensors & geojson
+            "last_24h_alerts_group": final_grouped_structure   # Key expected by sensor updates
         }
 
 # ----------------------------------------------------------------------
@@ -952,12 +963,12 @@ class FileManager:
                 day_name_he,
                 fmt_date,
                 fmt_time,
-                attrs.get('title', 'N/A'),
-                attrs.get('data_count', 0),
-                attrs.get('areas_alert_str', ''),
-                attrs.get('alerts_cities_str', ''),
-                attrs.get('desc', ''),
-                attrs.get('alerts_count', 0) 
+                attrs.get('prev_title', 'N/A'),
+                attrs.get('prev_data_count', 0),
+                attrs.get('prev_areas_alert_str', ''),
+                attrs.get('prev_alerts_cities_str', ''),
+                attrs.get('prev_desc', ''),
+                attrs.get('prev_alerts_count', 0) 
             ]
 
             output = StringIO()
@@ -1127,6 +1138,7 @@ class Red_Alerts_Israel(Hass):
         self.test_alert_start_time = 0
         self._poll_running = False
         self._terminate_event = asyncio.Event()
+        self.last_active_payload_details = None
 
         # --- Helper Class Instantiation ---
         self.lamas_manager    = LamasDataManager(
@@ -1652,11 +1664,52 @@ class Red_Alerts_Israel(Hass):
                 payload_cities_raw = [c.strip() for c in raw_payload_cities.split(',') if c.strip()]
             elif isinstance(raw_payload_cities, list):
                 payload_cities_raw = [str(city) for city in raw_payload_cities if isinstance(city, (str, int))]
-            stds_this_payload = set(standardize_name(n) for n in payload_cities_raw if n)
+            #stds_this_payload = set(standardize_name(n) for n in payload_cities_raw if n)
             #self.log(f"{log_prefix} Parsed Payload: ID={aid}, Cat={cat}, Title='{title}', Cities(Std)={len(stds_this_payload)}", level="DEBUG")
+
+            # ===> FILTERING LOGIC <===
+            forbidden_strings = ["בדיקה", "תרגיל"]
+            filtered_cities_raw = []
+            for city_name in payload_cities_raw:
+                # Check if any forbidden string is present in the current city name
+                if not any(forbidden in city_name for forbidden in forbidden_strings):
+                    filtered_cities_raw.append(city_name)
+                else: # Optional: Log if a city was filtered out
+                    self.log(f"{log_prefix} Filtering out city: '{city_name}' due to forbidden string.", level="INFO")
+
+            # If ALL cities were filtered out, skip processing this alert entirely
+            if not filtered_cities_raw and payload_cities_raw: # Check if original list had cities but filtered list is empty
+                self.log(f"{log_prefix} All cities in payload ID {data.get('id', 'N/A')} were filtered out. Skipping further processing for this payload.", level="INFO")
+                return # Stop processing this specific alert payload
+
+            stds_this_payload = set(standardize_name(n) for n in filtered_cities_raw if n)
+
+
         except Exception as e:
             self.log(f"{log_prefix} CRITICAL Error parsing alert data payload: {e}. Data: {data}", level="CRITICAL", exc_info=True)
             return # Stop processing this payload
+
+        # ===> Check for identical payload <===
+        if self.last_active_payload_details is not None and not is_test: # Apply only to real alerts for now
+            is_identical = (
+                self.last_active_payload_details['id'] == aid and
+                self.last_active_payload_details['cat'] == cat and
+                self.last_active_payload_details['title'] == title and
+                self.last_active_payload_details['desc'] == desc and
+                self.last_active_payload_details['stds'] == stds_this_payload # Compare sets
+            )
+
+            if is_identical:
+                self.last_alert_time = time.time()
+                return
+
+        self.last_active_payload_details = {
+            'id': aid,
+            'cat': cat,
+            'title': title,
+            'desc': desc,
+            'stds': stds_this_payload
+        }
 
         # --- Check if sensor was previously off ---
         sensor_was_off = await self.get_state(self.main_sensor) == "off"
@@ -1667,7 +1720,9 @@ class Red_Alerts_Israel(Hass):
             self.window_alerts_grouped = {}
             if self.file_manager: self.file_manager.clear_last_saved_id()
             self.history_manager.clear_poll_tracker()
-            self.last_processed_alert_id = None 
+            self.last_processed_alert_id = None
+            self.last_active_payload_details = None
+
 
         # --- 2. Update History ---
         # Call update first, then get attributes
@@ -1794,6 +1849,10 @@ class Red_Alerts_Israel(Hass):
             "prev_alerts_count": prev_state_attrs.get("alerts_count"),
             "prev_last_changed": prev_state_attrs.get("last_changed"),
             "prev_special_update": prev_state_attrs.get("special_update"),
+            "prev_alert_wa": prev_state_attrs.get("alert_wa"),
+            "prev_alert_tg": prev_state_attrs.get("alert_tg"),
+            "prev_icon": prev_state_attrs.get("icon"),
+            "prev_emoji": prev_state_attrs.get("emoji"),
             "script_status": "running"
         }
 
