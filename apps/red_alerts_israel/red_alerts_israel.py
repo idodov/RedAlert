@@ -744,10 +744,10 @@ class HistoryManager:
             if isinstance(a.get('time'), datetime) and a['time'] >= cutoff
         ]
 
-        # === Step 2: Apply NEW merging logic (10-minute window per city, keep latest) ===
+        # === Step 2: Apply NEW merging logic (30-minute window per city, keep latest) ===
         merged_history_newest_first = [] # Stores dicts with datetime objects, newest first
         time_of_last_added_alert_for_city = {} # Tracks {'city_name'} -> last_kept_datetime
-        merge_window = timedelta(minutes=10) # Define the 10-minute window
+        merge_window = timedelta(minutes=60) # Define the 30-minute window
 
         # self._log(f"History Attrs Step 2: Applying 10-min merge logic (on {len(pruned_history_list)} entries)...", level="DEBUG")
 
@@ -1035,6 +1035,7 @@ class Red_Alerts_Israel(Hass):
         self.log("--------------------------------------------------")
         self.log("       Initializing Red Alerts Israel App")
         self.log("--------------------------------------------------")
+        #self.set_namespace("red_alert")
         global _IS_RAI_RUNNING
         if _IS_RAI_RUNNING:
             self.log("Red_Alerts_Israel is already running – skipping duplicate initialize.", level="WARNING")
@@ -1048,9 +1049,10 @@ class Red_Alerts_Israel(Hass):
         self.save_2_file = self.args.get("save_2_file", True)
         self.sensor_name = self.args.get("sensor_name", "red_alert")
         self.city_names_config = self.args.get("city_names", [])
-        self.hours_to_show = self.args.get("hours_to_show", 12) # Default history to 12 hours
+        self.city_names_config.append("כל הארץ") 
+        self.hours_to_show = self.args.get("hours_to_show", 4) # Default history to 4 hours
         self.mqtt_topic = self.args.get("mqtt", False)
-        self.ha_event = self.args.get("event", True)
+        self.ha_event = self.args.get("event", False)
 
         # Validate config types
         if not isinstance(self.interval, (int, float)) or self.interval <= 1: # Interval should be > 1 sec
@@ -1813,8 +1815,12 @@ class Red_Alerts_Israel(Hass):
         # Use info generated in step 6 and prev_state_attrs from step 7
         #special_update = True if cat == 13 else False
         # בדקות הקרובות צפויות להתקבל התרעות באזורך
-        special_update = True if "בדקות הקרובות" in title or "עדכון" in title else False
-
+        #special_update = True if "בדקות הקרובות" in title or "עדכון" in title or "ניתן לצאת" in title or "שהייה בסמיכות למרחב מוגן" in title or "סיום שהייה" in title else False
+        
+        special_update = any(phrase in title for phrase in [
+            "בדקות הקרובות", "עדכון", "ניתן לצאת", 
+            "שהייה בסמיכות למרחב מוגן", "סיום שהייה"
+        ])
         final_attributes = {
             "active_now": True,
             "special_update": special_update, # Is it advanced alert
@@ -2167,8 +2173,10 @@ class Red_Alerts_Israel(Hass):
         # Determine status based on main state
         attributes["script_status"] = "running" #if main_state == "on" else "idle"
         #pre_alert = True if attributes["cat"] == 13 and "חדירת מחבלים" not in attributes["title"] else False
-        pre_alert = True if "בדקות הקרובות" in attributes.get("title", "") or "עדכון" in attributes.get("title", "") else False
-        
+        #pre_alert = True if "בדקות הקרובות" in attributes.get("title", "") or "עדכון" in attributes.get("title", "") else False
+        pre_alert = any(phrase in title for phrase in [
+                            "בדקות הקרובות", "עדכון", "בסמיכות", 
+                            ])
 
         update_tasks = []
         log_prefix = "[HA Update]"
