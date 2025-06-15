@@ -563,7 +563,7 @@ class HistoryManager:
         self._history_list = [] # List of dicts {'title':.., 'city':.., 'area':.., 'time': datetime}
         self._added_in_current_poll = set() # Tracks (title, std_city, area) tuples added this poll cycle
         ### NEW: Added a hard limit for the number of alert events in history attributes ###
-        self._max_history_events = 1500
+        self._max_history_events = 2000
 
     def clear_poll_tracker(self):
         """Clears the set tracking entries added during the last poll cycle."""
@@ -789,7 +789,7 @@ class HistoryManager:
         # === Step 3: Limit the number of events to prevent oversized attributes === ### NEW LOGIC ###
         original_count = len(merged_history_with_dt)
         if original_count > self._max_history_events:
-            self._log(f"History contains {original_count} alert events, which is over the limit. Truncating to the newest {self._max_history_events}.", level="INFO")
+            self._log(f"History contains {original_count} alert events, which is over the limit. Truncating to the newest {self._max_history_events}.", level="DEBUG")
             merged_history_with_dt = merged_history_with_dt[:self._max_history_events]
 
         # === Step 4: Format the (potentially limited) list for HA attributes ===
@@ -1139,6 +1139,7 @@ class Red_Alerts_Israel(Hass):
         self._poll_running = False
         self._terminate_event = asyncio.Event()
         self.last_active_payload_details = None
+        self.last_history_attributes_cache = None 
 
         # --- Helper Class Instantiation ---
         self.lamas_manager    = LamasDataManager(
@@ -2273,74 +2274,50 @@ class Red_Alerts_Israel(Hass):
                     except Exception as e_bool:
                         self.log(f"{log_prefix} Error turning off test boolean after interruption: {e_bool}", level="WARNING")
 
-            else: # --- No Active Alert Found in Payload OR API Error ---
+            else:  # --- No Active Alert Found in Payload OR API Error ---
                 if not api_error:
-                    # self.log(f"{log_prefix} No active alert data in payload.", level="DEBUG")
                     self.no_active_alerts_polls += 1
                 else:
-                    # Don't increment poll count if API failed, might be temporary
                     self.log(f"{log_prefix} API error occurred, not incrementing idle poll count.", level="DEBUG")
-                    # Let's proceed to check reset ONLY IF no test alert is running.
 
-                # Update history sensors even when no active alert is detected in the current poll.
+                # --- Efficient History Update on Idle Poll ---
                 try:
-                    hist_attrs = self.history_manager.get_history_attributes()
-                    if isinstance(hist_attrs, dict): # Ensure valid data structure
-                        count_cities = len(hist_attrs.get("cities_past_24h", []))
-                        count_alerts = len(hist_attrs.get("last_24h_alerts", []))
-                        tasks = []
-                        # Re-set state to trigger attribute update, even if state (count) is the same
-                        hist_cities_attrs = {
-                            "cities_past_24h": hist_attrs.get("cities_past_24h", []),
-                            "script_status": "running" # Always include status
-                        }
-                        tasks.append(self.set_state(self.history_cities_sensor, state=str(count_cities), attributes=hist_cities_attrs))
+                    # Recalculate history attributes based on the current time
+                    current_hist_attrs = self.history_manager.get_history_attributes()
 
-                        history_list_attr = {
-                            "last_24h_alerts": hist_attrs.get("last_24h_alerts", []),
-                            "script_status": "running"
-                        }
-                        tasks.append(self.set_state(self.history_list_sensor, state=str(count_alerts), attributes=history_list_attr))
-
-                        history_group_attr = {
-                            "last_24h_alerts_group": hist_attrs.get("last_24h_alerts_group", {}),
-                            "script_status": "running"
-                        }
-                        tasks.append(self.set_state(self.history_group_sensor, state=str(count_alerts), attributes=history_group_attr))
-
-                        # Also update history GeoJSON file
+                    # Only update HA sensors if the history has actually changed
+                    if isinstance(current_hist_attrs, dict) and current_hist_attrs != self.last_history_attributes_cache:
+                        self.log(f"{log_prefix} History data has changed. Updating sensors.", level="DEBUG")
+                        count_alerts = len(current_hist_attrs.get("last_24h_alerts", []))
+                        tasks = [
+                            self.set_state(self.history_cities_sensor, state=str(len(current_hist_attrs.get("cities_past_24h", []))), attributes={"cities_past_24h": current_hist_attrs["cities_past_24h"], "script_status": "running"}),
+                            self.set_state(self.history_list_sensor, state=str(count_alerts), attributes={"last_24h_alerts": current_hist_attrs["last_24h_alerts"], "script_status": "running"}),
+                            self.set_state(self.history_group_sensor, state=str(count_alerts), attributes={"last_24h_alerts_group": current_hist_attrs["last_24h_alerts_group"], "script_status": "running"})
+                        ]
                         if self.save_2_file and self.file_manager:
-                            tasks.append(self._save_history_geojson(hist_attrs))
-
-
-                        if tasks:
-                            results = await asyncio.gather(*tasks, return_exceptions=True)
-                            # self.log(f"{log_prefix} Updated history sensors & GeoJSON (idle poll).", level="DEBUG") # Optional debug log
-                        else:
-                            self.log(f"{log_prefix} No history update tasks prepared during idle poll.", level="WARNING")
-
-                    else:
-                        self.log(f"{log_prefix} Failed to get valid history attributes during idle poll update.", level="WARNING")
+                            tasks.append(self._save_history_geojson(current_hist_attrs))
+                        
+                        await asyncio.gather(*tasks, return_exceptions=True)
+                        
+                        # Update the cache with the new data
+                        self.last_history_attributes_cache = current_hist_attrs
+                    
                 except Exception as e:
                     self.log(f"{log_prefix} Error updating history sensors during idle poll: {e}", level="ERROR", exc_info=True)
 
-                # Handle expiration of test alert window first
+                # --- Handle Test Window Expiration & Sensor Reset ---
                 if self.test_alert_cycle_flag > 0:
-                    elapsed_test_time = time.time() - self.test_alert_start_time
-                    if elapsed_test_time >= self.timer_duration:
-                        self.log(f"{log_prefix} Test alert timer ({self.timer_duration}s) expired. Test window ended.", level="INFO")
+                    if time.time() - self.test_alert_start_time >= self.timer_duration:
+                        self.log(f"{log_prefix} Test alert timer expired. Ending test window.", level="INFO")
                         self.test_alert_cycle_flag = 0
                         self.test_alert_start_time = 0
-                        # Now that test window ended naturally, check for sensor reset
-                        # Note: _check_reset_sensors will also update history sensors/geojson on reset
                         await self._check_reset_sensors()
                     else:
-                        # Test window still active, do nothing else this cycle
-                        # We already updated history sensors above, so we can just return
-                        return # Exit poll cycle early
+                        # Test window is still active, so we don't check for a normal reset.
+                        # We've already handled the history update above.
+                        return 
                 else:
-                    # No test window active, proceed normally to check if sensors should be reset
-                    # Note: _check_reset_sensors will also update history sensors/geojson on reset
+                    # No test is active, so check for a normal sensor reset.
                     await self._check_reset_sensors()
 
 
