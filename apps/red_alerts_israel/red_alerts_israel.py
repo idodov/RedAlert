@@ -1047,7 +1047,7 @@ class Red_Alerts_Israel(Hass):
         self.save_2_file = self.args.get("save_2_file", True)
         self.sensor_name = self.args.get("sensor_name", "red_alert")
         self.city_names_config = self.args.get("city_names", [])
-        self.city_names_config.append("כל הארץ")
+        self.city_names_config.append("ברחבי הארץ")
         self.hours_to_show = self.args.get("hours_to_show", 1)
         self.mqtt_topic = self.args.get("mqtt", False)
         self.ha_event = self.args.get("event", True)
