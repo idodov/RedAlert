@@ -34,6 +34,7 @@ red_alerts_israel:
      - "אזור תעשייה צפוני אשקלון"  # Example: Ashkelon Industrial Zone North
      - "חיפה - מפרץ"			  # Example: Haifa Bay
      - "תל אביב - מרכז העיר"        # Example: Tel Aviv - City Center
+```
 """
 
 import aiohttp
@@ -561,6 +562,8 @@ class HistoryManager:
         self._timer_duration_seconds = timer_duration_seconds # Store the duration in seconds
         self._history_list = [] # List of dicts {'title':.., 'city':.., 'area':.., 'time': datetime}
         self._added_in_current_poll = set() # Tracks (title, std_city, area) tuples added this poll cycle
+        ### NEW: Added a hard limit for the number of alert events in history attributes ###
+        self._max_history_events = 1500
 
     def clear_poll_tracker(self):
         """Clears the set tracking entries added during the last poll cycle."""
@@ -688,7 +691,7 @@ class HistoryManager:
 
 
     def restructure_alerts(self, alerts_list: list) -> dict:
-        """Groups alerts by title, then area, including city and time (HH:MM:SS). Expects list with STRING times."""
+        """Groups alerts by title, then area, including city and time (HH:MM:SS). Expects a list of pre-processed alerts."""
         structured_data = {}
         if not alerts_list: return structured_data
 
@@ -697,12 +700,10 @@ class HistoryManager:
                 self._log(f"Restructure: Skipping non-dict item: {type(alert)}", level="WARNING")
                 continue
             
-            original_title = alert.get('title', 'לא ידוע')
+            title = alert.get('title', 'לא ידוע')
             area  = alert.get('area', DEFAULT_UNKNOWN_AREA)
             city  = alert.get('city', 'לא ידוע')
             time_str = alert.get('time', '') # String time from previous step
-
-            title = "התרעות מקדימות" if original_title == "בדקות הקרובות צפויות להתקבל התרעות באזורך" else original_title
 
             time_display = "??:??:??" # Default
             if isinstance(time_str, str) and ' ' in time_str and ':' in time_str:
@@ -726,83 +727,80 @@ class HistoryManager:
 
         return structured_data
 
-        # Inside the HistoryManager class...
-
     def get_history_attributes(self) -> dict:
         """
-        Generates attributes for history sensors, applying time-based pruning (hours_to_show)
-        and merging duplicates based on a 10-minute window per city, keeping the latest entry.
-        Returns data using the original expected keys: 'cities_past_24h', 'last_24h_alerts', 'last_24h_alerts_group'.
+        Generates attributes for history sensors. It prunes alerts by time,
+        groups/merges them, and finally limits the total number of events.
         """
         # === Step 1: Pruning based on 'hours_to_show' ===
         now = datetime.now()
         cutoff = now - timedelta(hours=self._hours_to_show)
-        # Filter list, ensuring time is valid datetime and >= cutoff
-        # Assumes self._history_list is sorted newest-first (maintained by update_history)
         pruned_history_list = [
             a for a in self._history_list
             if isinstance(a.get('time'), datetime) and a['time'] >= cutoff
         ]
 
-        # === Step 2: Apply NEW merging logic (10-minute window per city, keep latest) ===
-        merged_history_newest_first = [] # Stores dicts with datetime objects, newest first
-        time_of_last_added_alert_for_city = {} # Tracks {'city_name'} -> last_kept_datetime
-        merge_window = timedelta(minutes=50) # Define the 10-minute window
+        # === Step 2: Aggregate alerts into event blocks and merge titles ===
+        city_event_blocks = {}
+        merge_window = timedelta(minutes=50)
 
-        # self._log(f"History Attrs Step 2: Applying 10-min merge logic (on {len(pruned_history_list)} entries)...", level="DEBUG")
-
-        # Iterate newest first (list is already sorted this way)
         for alert in pruned_history_list:
-            # Basic validation of the alert structure
-            if not isinstance(alert, dict) or not all(k in alert for k in ['title', 'city', 'area', 'time']):
-                self._log(f"Merge Logic: Skipping malformed/incomplete entry: {alert}", level="WARNING")
-                continue
-            if not isinstance(alert['time'], datetime):
-                self._log(f"Merge Logic: Skipping entry with non-datetime time: {alert}", level="WARNING")
+            if not all(k in alert for k in ['city', 'time']) or not isinstance(alert.get('time'), datetime):
+                self._log(f"Merge Logic: Skipping malformed history entry: {alert}", level="WARNING")
                 continue
 
-            city_name = alert['city'] # Use the original city name stored in history
+            city_name = alert['city']
             alert_time = alert['time']
 
-            if city_name in time_of_last_added_alert_for_city:
-                last_added_time = time_of_last_added_alert_for_city[city_name]
-                # Check if this alert is within 10 minutes *before* the last one added
-                if last_added_time - alert_time < merge_window:
-                    # This alert is within 10 mins of the newer one already kept for this city.
-                    # Discard this one (effectively removing duplicates/older categories within the window).
-                    # self._log(f"Merge Logic: Discarding '{city_name}' at {alert_time} (within 10min of newer kept entry at {last_added_time})", level="DEBUG")
-                    continue
-                else:
-                    # This alert is older than 10 mins from the last *added* one for this city.
-                    # It represents a distinct event block. Keep it.
-                    merged_history_newest_first.append(alert)
-                    # Update the tracking time to this alert's time, as it's the latest for this older block
-                    time_of_last_added_alert_for_city[city_name] = alert_time
-                    # self._log(f"Merge Logic: Keeping '{city_name}' at {alert_time} (distinct block, older than 10min from {last_added_time})", level="DEBUG")
+            if city_name not in city_event_blocks:
+                city_event_blocks[city_name] = [[alert]]
+                continue
 
+            latest_time_in_last_block = city_event_blocks[city_name][-1][0]['time']
+
+            if latest_time_in_last_block - alert_time < merge_window:
+                city_event_blocks[city_name][-1].append(alert)
             else:
-                # First time encountering this city in the iteration (i.e., the absolute newest entry for this city overall).
-                # Keep it and record its time.
-                merged_history_newest_first.append(alert)
-                time_of_last_added_alert_for_city[city_name] = alert_time
-                # self._log(f"Merge Logic: Keeping '{city_name}' at {alert_time} (newest encountered)", level="DEBUG")
+                city_event_blocks[city_name].append([alert])
 
-        merged_history_with_dt = list(merged_history_newest_first)
-        # self._log(f"History Attrs Step 2: Merge complete. Kept {len(merged_history_with_dt)} entries.", level="DEBUG")
+        merged_history_with_dt = []
+        for city, blocks in city_event_blocks.items():
+            for block in blocks:
+                if not block: continue
 
-        # === Step 3: Format the filtered/merged list for HA attributes ===
+                latest_alert_in_block = block[0]
+                all_titles_in_block = set()
+                for alert_in_block in block:
+                    original_title = alert_in_block.get('title', 'לא ידוע')
+                    translated_title = "התרעות מקדימות" if original_title == "בדקות הקרובות צפויות להתקבל התרעות באזורך" else original_title
+                    all_titles_in_block.add(translated_title)
+
+                final_title = " & ".join(sorted(list(all_titles_in_block)))
+                merged_alert = {
+                    'title': final_title,
+                    'city': latest_alert_in_block['city'],
+                    'area': latest_alert_in_block['area'],
+                    'time': latest_alert_in_block['time']
+                }
+                merged_history_with_dt.append(merged_alert)
+
+        merged_history_with_dt.sort(key=lambda x: x.get('time', datetime.min), reverse=True)
+
+        # === Step 3: Limit the number of events to prevent oversized attributes === ### NEW LOGIC ###
+        original_count = len(merged_history_with_dt)
+        if original_count > self._max_history_events:
+            self._log(f"History contains {original_count} alert events, which is over the limit. Truncating to the newest {self._max_history_events}.", level="INFO")
+            merged_history_with_dt = merged_history_with_dt[:self._max_history_events]
+
+        # === Step 4: Format the (potentially limited) list for HA attributes ===
         final_history_list_for_ha = []
-        final_cities_set = set() # Collect unique city names from the final list
+        final_cities_set = set()
 
-        for a in merged_history_with_dt: # Iterate through the merged list
+        for a in merged_history_with_dt:
             time_str = "N/A"
             try:
-                # Format the datetime object into 'YYYY-MM-DD HH:MM:SS'
                 time_str = a['time'].strftime('%Y-%m-%d %H:%M:%S')
-            except AttributeError: # Catch if 'time' isn't a datetime somehow
-                self._log(f"History Formatting: Non-datetime object found: {a.get('time')}", level="WARNING")
-                time_str = str(a.get('time', 'N/A'))
-            except Exception as e:
+            except (AttributeError, Exception) as e:
                 self._log(f"History Formatting: Error formatting time {a.get('time')}: {e}", level="WARNING")
                 time_str = str(a.get('time', 'N/A'))
 
@@ -811,20 +809,20 @@ class HistoryManager:
                 'title': a.get('title', 'לא ידוע'),
                 'city': city_name,
                 'area': a.get('area', DEFAULT_UNKNOWN_AREA),
-                'time': time_str # The formatted string time
+                'time': time_str
             })
-            final_cities_set.add(city_name) # Add the original city name
+            final_cities_set.add(city_name)
 
-        # === Step 4: Restructure the formatted list for the grouped attribute ===
-        # Uses the result of the merge+format process
+        # === Step 5: Restructure the formatted list for the grouped attribute ===
         final_grouped_structure = self.restructure_alerts(final_history_list_for_ha)
 
-        # === Step 5: Return the final attributes structure using ORIGINAL keys ===
+        # === Step 6: Return the final attributes structure ===
         return {
-            "cities_past_24h": sorted(list(final_cities_set)), # Key expected by sensor updates
-            "last_24h_alerts": final_history_list_for_ha,      # Key expected by sensors & geojson
-            "last_24h_alerts_group": final_grouped_structure   # Key expected by sensor updates
+            "cities_past_24h": sorted(list(final_cities_set)),
+            "last_24h_alerts": final_history_list_for_ha,
+            "last_24h_alerts_group": final_grouped_structure
         }
+
 
 # ----------------------------------------------------------------------
 # Helper Class: FileManager
@@ -2641,8 +2639,8 @@ class Red_Alerts_Israel(Hass):
         unknown_cities_logged = set() # Track warnings
 
         # Refine using Lamas if possible
-        refined_orig_cities = set()
         if self.lamas_manager: # Check if LamasManager is initialized
+            refined_orig_cities = set()
             for city_name_from_backup in cities_from_backup:
                 if not city_name_from_backup: continue
                 std = standardize_name(city_name_from_backup)
