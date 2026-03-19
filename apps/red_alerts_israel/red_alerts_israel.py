@@ -11,10 +11,10 @@ Monitors the official Israeli Home Front Command (Pikud HaOref) API for rocket a
 4.  Save `apps.yaml`.
 
 **Example `apps.yaml` Configuration:**
-```yaml
+
 red_alerts_israel:
   module: red_alerts_israel      # Python module name (don't change)
-  class: Red_Alerts_Israel       # Class name (don't change)
+  class: Red_Alerts_Israel        # Class name (don't change)
 
   # --- Core Settings ---
   interval: 5                   # (Seconds) How often to check the API for alerts. Default: 5
@@ -32,9 +32,9 @@ red_alerts_israel:
   # --- Location Specific ---
   city_names:                   # List the exact city/area names you want to monitor for the city_sensor.
      - "אזור תעשייה צפוני אשקלון"  # Example: Ashkelon Industrial Zone North
-     - "חיפה - מפרץ"			  # Example: Haifa Bay
+     - "חיפה - מפרץ"             # Example: Haifa Bay
      - "תל אביב - מרכז העיר"        # Example: Tel Aviv - City Center
-```
+
 """
 
 import aiohttp
@@ -48,6 +48,7 @@ import random
 import os
 import csv
 import atexit
+from collections import defaultdict
 from datetime import datetime, timedelta
 from io import StringIO
 from aiohttp import TCPConnector, ClientTimeout
@@ -97,6 +98,35 @@ def check_bom(text: str) -> str:
         text = text.lstrip('\ufeff')
     return text
 
+def parse_datetime_str(ds: str, logger_func=None) -> datetime | None:
+    """Parses various datetime string formats into datetime objects."""
+    if not ds or not isinstance(ds, str): return None
+    ds = ds.strip().strip('"')
+    formats = [
+        "%Y-%m-%dT%H:%M:%S.%f", # ISO with microseconds
+        "%Y-%m-%dT%H:%M:%S",    # ISO without microseconds
+        "%Y-%m-%d %H:%M:%S.%f", # Space separated with microseconds
+        "%Y-%m-%d %H:%M:%S"     # Space separated without microseconds
+    ]
+    for fmt in formats:
+        try: return datetime.strptime(ds, fmt)
+        except ValueError: pass
+    try:
+        # Handle ISO format with timezone (make naive for comparison)
+        if '+' in ds: ds = ds.split('+')[0]
+        if 'Z' in ds: ds = ds.split('Z')[0]
+        # Try parsing again after stripping potential timezone info
+        for iso_fmt in ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]:
+            try: return datetime.strptime(ds, iso_fmt)
+            except ValueError: pass
+        # Last attempt with fromisoformat
+        return datetime.fromisoformat(ds)
+    except ValueError:
+        return None
+    except Exception as e:
+        if logger_func:
+            logger_func(f"Unexpected error parsing datetime string '{ds}': {e}", level="WARNING")
+        return None
 
 # ----------------------------------------------------------------------
 # Helper Class: OrefAPIClient
@@ -133,7 +163,6 @@ class OrefAPIClient:
                     if 'application/json' not in resp.headers.get('Content-Type', ''):
                         self._log(f"Warning: Expected JSON content type, got {resp.headers.get('Content-Type')}", level="WARNING")
                     raw_data = await resp.read()
-                    # Attempt decoding with utf-8-sig first, then utf-8 as fallback
                     try:
                         return raw_data.decode('utf-8-sig')
                     except UnicodeDecodeError:
@@ -146,21 +175,19 @@ class OrefAPIClient:
                 return None
 
             try:
-                # Remove BOM if present before loading JSON
                 text = check_bom(text)
                 return json.loads(text)
             except json.JSONDecodeError as e:
                 log_text_preview = text[:1000].replace('\n', '\\n').replace('\r', '\\r') 
                 if "Expecting value: line 1 column 1 (char 0)" in str(e) and len(text) > 0:
                     pass
-                    #self._log(f"Invalid JSON: Received non-empty data that did not start with a valid JSON value. Content preview: '{log_text_preview}...'", level="WARNING")
                 else:
                     self._log(f"Invalid JSON in live alerts: {e}. Raw text preview: '{log_text_preview}...'", level="WARNING")
                 return None
 
         except aiohttp.ClientResponseError as e:
             self._log(f"HTTP error fetching live alerts: Status {e.status}, Message: {e.message}", level="WARNING")
-        except (aiohttp.ClientError, asyncio.TimeoutError) as e: # Combined network errors
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e: 
             self._log(f"Network/Timeout error fetching live alerts: {e}", level="WARNING")
         except Exception as e:
             self._log(f"Unexpected error fetching live alerts: {e.__class__.__name__} - {e}", level="ERROR", exc_info=True)
@@ -188,8 +215,6 @@ class OrefAPIClient:
                 return None
             try:
                 text = check_bom(text)
-                #if text.startswith('\ufeff'):
-                #    text = text.lstrip('\ufeff')
                 data = json.loads(text)
                 if isinstance(data, list):
                     return data
@@ -220,8 +245,6 @@ class OrefAPIClient:
                         return raw_data.decode('utf-8')
             text = await self._fetch_with_retries(_do_fetch)
             text = check_bom(text)
-            #if text and text.startswith('\ufeff'):
-            #    text = text.lstrip('\ufeff')
             return text
         except aiohttp.ClientResponseError as e:
             self._log(f"HTTP error downloading file {url}: Status {e.status}, Message: {e.message}", level="ERROR")
@@ -250,54 +273,49 @@ class LamasDataManager:
             try:
                 with open(self._local_file_path, 'r', encoding='utf-8-sig') as f:
                     loaded = json.load(f)
-                if loaded and 'areas' in loaded: # Basic validation
+                if loaded and 'areas' in loaded: 
                     pass
                 else:
                     self._log("Local Lamas data invalid or empty. Will attempt download.", level="WARNING")
-                    loaded = None # Force download if local file is bad
+                    loaded = None 
             except (json.JSONDecodeError, OSError, Exception) as e:
                 self._log(f"Error reading local Lamas file '{self._local_file_path}': {e}. Will attempt download.", level="WARNING")
-                loaded = None # Force download on error
+                loaded = None 
 
         if loaded is None:
             self._log("Downloading Lamas data from GitHub.")
             text = await self._api_client.download_file(self._github_url)
             if text:
                 try:
-                    # Ensure BOM is removed if present
                     text = check_bom(text)
                     loaded = json.loads(text)
-                    if loaded and 'areas' in loaded: # Basic validation
+                    if loaded and 'areas' in loaded: 
                         try:
                             os.makedirs(os.path.dirname(self._local_file_path), exist_ok=True)
                             with open(self._local_file_path, 'w', encoding='utf-8-sig') as f:
-                                json.dump(loaded, f, ensure_ascii=False, indent=2) # Save downloaded JSON prettified
+                                json.dump(loaded, f, ensure_ascii=False, indent=2) 
                             self._log("Lamas data downloaded and saved locally.")
                         except Exception as e:
                             self._log(f"Error saving Lamas data locally to '{self._local_file_path}': {e}", level="ERROR")
                     else:
                         self._log("Downloaded Lamas data is invalid (missing 'areas' key).", level="ERROR")
-                        loaded = None # Indicate failure
+                        loaded = None 
                 except json.JSONDecodeError as e:
                     self._log(f"Invalid Lamas JSON downloaded from '{self._github_url}': {e}", level="ERROR")
-                    loaded = None # Indicate failure
+                    loaded = None 
             else:
                 self._log("Failed to download Lamas data.", level="ERROR")
 
-
-        # Process whatever data we ended up with (local or downloaded)
         if loaded and self._process_lamas_data(loaded):
             self._build_city_details_map()
             return True
 
-        # Critical failure if we couldn't load from anywhere
         self._log("CRITICAL: Failed to load Lamas data from both local file and download.", level="CRITICAL")
         self._lamas_data = None
         self._city_details_map = {}
         return False
 
     def _process_lamas_data(self, raw_data):
-        """Internal: Processes raw Lamas data into the internal structure."""
         if not raw_data or 'areas' not in raw_data:
             self._log("Lamas data missing 'areas' key during processing.", level="ERROR")
             return False
@@ -308,19 +326,18 @@ class LamasDataManager:
             if isinstance(cities, dict):
                 std_cities = {}
                 for city, details in cities.items():
-                    if not isinstance(details, dict): # Add check for detail type
+                    if not isinstance(details, dict): 
                         self._log(f"Lamas Processing: Expected dict for city details of '{city}' in area '{area}', got {type(details)}. Skipping city.", level="WARNING")
                         continue
                     expected_keys_count += 1
                     std = standardize_name(city)
-                    if not std: # Skip if standardized name becomes empty
+                    if not std: 
                         self._log(f"Lamas Processing: City '{city}' resulted in empty standardized name. Skipping.", level="WARNING")
                         continue
 
                     entry = {"original_name": city}
-                    # Safely extract lat/long
                     lat = details.get("lat")
-                    lon = details.get("long") # Renamed from 'long' for clarity
+                    lon = details.get("long") 
                     try:
                         if lat is not None and lon is not None:
                             entry["lat"]  = float(lat)
@@ -330,7 +347,7 @@ class LamasDataManager:
                     except (ValueError, TypeError):
                         self._log(f"Lamas Processing: Invalid coordinate types for city '{city}' (lat: {lat}, long: {lon}). Skipping coords.", level="WARNING")
 
-                    if std in std_cities: # Check for duplicate standardized names within the same area
+                    if std in std_cities: 
                         self._log(f"Lamas Processing: Duplicate standardized name '{std}' found in area '{area}'. Original names: '{std_cities[std]['original_name']}', '{city}'. Overwriting.", level="WARNING")
 
                     std_cities[std] = entry
@@ -338,50 +355,42 @@ class LamasDataManager:
                 proc['areas'][area] = std_cities
             else:
                 self._log(f"Lamas Processing: Expected dict for area '{area}', got {type(cities)}. Skipping area.", level="WARNING")
-                proc['areas'][area] = {} # Ensure area exists but is empty
+                proc['areas'][area] = {} 
         self._lamas_data = proc
         if expected_keys_count != processed_keys_count:
             self._log(f"Lamas Processing: Mismatch - attempted {expected_keys_count} city entries, successfully processed {processed_keys_count}.", level="WARNING")
-        #self._log(f"Lamas data processed: {len(proc['areas'])} areas, {processed_keys_count} cities.", level="INFO")
         return True
 
     def _build_city_details_map(self):
-        """Internal: Builds the flat map for quick standardized name lookups."""
         self._city_details_map = {}
         if self._lamas_data and 'areas' in self._lamas_data:
             entries_built = 0
-            duplicates = {} # Track potential duplicates across different areas
+            duplicates = {} 
             for area, cities in self._lamas_data['areas'].items():
                 if isinstance(cities, dict):
                     for std, details in cities.items():
                         if std in self._city_details_map:
-                            # Log duplicate standardized names found across areas
                             if std not in duplicates: duplicates[std] = [self._city_details_map[std]['area']]
                             duplicates[std].append(area)
-
                             self._log(f"Lamas Map Build: Duplicate std name '{std}' found in areas: {duplicates[std]}. Using entry from area '{area}'.", level="WARNING")
-                        # Combine details with area info, potentially overwriting previous entry
+                        
                         self._city_details_map[std] = {**details, "area": area}
                         entries_built += 1
                 else:
                     self._log(f"Lamas Map Build: Area '{area}' has unexpected data type {type(cities)}. Skipping.", level="WARNING")
 
-            if entries_built > 0:
-                #self._log(f"Built city map ({len(self._city_details_map)} unique standardized entries).")
-                pass
-            else:
+            if entries_built == 0:
                 self._log("Lamas Map Build: No valid city entries found to build map.", level="ERROR")
             if duplicates:
                 self._log(f"Lamas Map Build: Found {len(duplicates)} standardized names duplicated across multiple areas.", level="WARNING")
         else:
             self._log("No Lamas data available to build map.", level="ERROR")
 
-    @functools.lru_cache(maxsize=512) # Cache recent lookups
+    @functools.lru_cache(maxsize=512) 
     def get_city_details(self, standardized_name: str):
-        """Gets city details (original name, coords, area) from the map using the standardized name."""
         if not isinstance(standardized_name, str) or not standardized_name:
             return None
-        return self._city_details_map.get(standardized_name) # Returns None if not found
+        return self._city_details_map.get(standardized_name) 
 
 # ----------------------------------------------------------------------
 # Helper Class: AlertProcessor
@@ -391,29 +400,24 @@ class AlertProcessor:
         self._lamas = lamas_manager
         self._icons = icons_emojis_map
         self._log   = logger
-        # Define limits once
         self.max_msg_len = 700
         self.max_attr_len = 160000
         self.max_input_len = 255
 
-
     def extract_duration_from_desc(self, descr: str) -> int:
-        """Extracts alert duration in seconds from description text."""
         if not isinstance(descr, str):
             return 0
-        # Regex to find number followed by 'דקות' or 'דקה'
         m = re.search(r'(\d+)\s+(דקות|דקה)', descr)
         if m:
             try:
                 minutes = int(m.group(1))
-                return minutes * 60 # Return duration in seconds
+                return minutes * 60 
             except ValueError:
                 self._log(f"Could not parse number from duration string: '{m.group(1)}'", level="WARNING")
-        return 0 # Return 0 if no match or conversion error
+        return 0 
 
     def _check_len(self, text: str, count: int, areas: str, max_len: int, context: str = "message") -> str:
-        """Truncates text if it exceeds max_len, adding a notice."""
-        if not isinstance(text, str): return "" # Handle non-string input
+        if not isinstance(text, str): return "" 
         try:
             text_len = len(text)
             if text_len > max_len:
@@ -424,14 +428,11 @@ class AlertProcessor:
         return text
 
     def process_alert_window_data(self, category, title, description, window_std_cities, window_alerts_grouped):
-        """Processes the accumulated data for the current alert window to generate HA state attributes."""
         log_prefix = "[Alert Processor]"
 
-        # --- 1. Basic processing based on LATEST alert info ---
         icon, emoji = self._icons.get(category, ("mdi:alert", "❗"))
         duration = self.extract_duration_from_desc(description)
 
-        # --- 2. Handle Empty Input ---
         if not window_std_cities:
             self._log(f"{log_prefix} Called with empty overall city set (window_std_cities). Returning default structure.", level="WARNING")
             input_text_state = title[:self.max_input_len] if title else "אין התרעות"
@@ -446,11 +447,11 @@ class AlertProcessor:
                 "input_text_state": input_text_state
             }
 
-        # --- 3. Process OVERALL accumulated cities ---
         overall_areas_set = set()
         overall_orig_cities_set = set()
         cities_by_area_overall = {}
         unknown_cities_logged_overall = set()
+        
         for std in window_std_cities:
             det = self._lamas.get_city_details(std)
             area = DEFAULT_UNKNOWN_AREA
@@ -471,7 +472,6 @@ class AlertProcessor:
         overall_count = len(overall_cities_list_sorted)
         overall_cities_str = ", ".join(overall_cities_list_sorted)
 
-        # --- 4. Generate Standard Message Components ---
         full_overall_lines = []
         for area, names_set in sorted(cities_by_area_overall.items()):
             sorted_cities_str_area = ", ".join(sorted(list(names_set)))
@@ -480,7 +480,6 @@ class AlertProcessor:
         full_message_str_raw = title + "\n * " + "\n * ".join(full_overall_lines)
         alert_txt_basic = " * ".join(full_overall_lines)
 
-        # --- 5. Generate Grouped WhatsApp and Telegram Messages ---
         wa_grouped_lines = []
         tg_grouped_lines = []
         num_alert_types_in_window = len(window_alerts_grouped)
@@ -517,7 +516,6 @@ class AlertProcessor:
         text_wa_grouped_raw = "\n".join(wa_grouped_lines)
         text_tg_grouped_raw = "\n".join(tg_grouped_lines)
 
-        # --- 6. Truncate Results if Needed ---
         text_wa_grouped_checked = self._check_len(text_wa_grouped_raw, overall_count, overall_areas_str, self.max_msg_len, "Grouped WhatsApp Msg")
         text_tg_grouped_checked = self._check_len(text_tg_grouped_raw, overall_count, overall_areas_str, self.max_msg_len, "Grouped Telegram Msg")
         status_checked = self._check_len(status_str_raw, overall_count, overall_areas_str, self.max_attr_len, "Status Attribute")
@@ -525,7 +523,6 @@ class AlertProcessor:
         overall_cities_str_checked = self._check_len(overall_cities_str, overall_count, overall_areas_str, self.max_attr_len, "Cities String Attribute")
         input_state = self._check_len(status_str_raw, overall_count, overall_areas_str, self.max_input_len, "Input Text State")[:self.max_input_len]
 
-        # --- 7. Return Final Attributes Dictionary ---
         return {
             "areas_alert_str": overall_areas_str,
             "cities_list_sorted": overall_cities_list_sorted,
@@ -548,7 +545,6 @@ class AlertProcessor:
 # ----------------------------------------------------------------------
 class HistoryManager:
     def __init__(self, hours_to_show, lamas_manager, logger, timer_duration_seconds):
-        """Initializes the HistoryManager"""
         if not isinstance(timer_duration_seconds, (int, float)) or timer_duration_seconds <= 0:
             logger.log(f"Invalid timer_duration_seconds ({timer_duration_seconds}), using default 120.", level="WARNING")
             timer_duration_seconds = 120
@@ -557,46 +553,37 @@ class HistoryManager:
             hours_to_show = 4
 
         self._hours_to_show = hours_to_show
-        self._lamas = lamas_manager # Expects an instance of LamasDataManager
-        self._log   = logger        # Expects an AppDaemon logger instance
-        self._timer_duration_seconds = timer_duration_seconds # Store the duration in seconds
-        self._history_list = [] # List of dicts {'title':.., 'city':.., 'area':.., 'time': datetime}
-        self._added_in_current_poll = set() # Tracks (title, std_city, area) tuples added this poll cycle
-        ### NEW: Added a hard limit for the number of alert events in history attributes ###
+        self._lamas = lamas_manager 
+        self._log   = logger        
+        self._timer_duration_seconds = timer_duration_seconds 
+        self._history_list = [] 
+        self._added_in_current_poll = set() 
         self._max_history_events = 2000
 
     def clear_poll_tracker(self):
         """Clears the set tracking entries added during the last poll cycle."""
         self._added_in_current_poll.clear()
 
-    def _parse_datetime_str(self, ds: str) -> datetime | None:
-        """Parses various datetime string formats into datetime objects."""
-        if not ds or not isinstance(ds, str): return None
-        ds = ds.strip().strip('"')
-        formats = [
-            "%Y-%m-%dT%H:%M:%S.%f", # ISO with microseconds
-            "%Y-%m-%dT%H:%M:%S",    # ISO without microseconds
-            "%Y-%m-%d %H:%M:%S.%f", # Space separated with microseconds
-            "%Y-%m-%d %H:%M:%S"     # Space separated without microseconds
+    def _prune_and_limit(self) -> bool:
+        """
+        Prunes old alerts from the internal history list to prevent memory leaks and slow loops.
+        Returns True if items were actually removed.
+        """
+        original_len = len(self._history_list)
+        now = datetime.now()
+        cutoff = now - timedelta(hours=self._hours_to_show)
+
+        # Filter out old items
+        self._history_list = [
+            a for a in self._history_list
+            if isinstance(a.get('time'), datetime) and a['time'] >= cutoff
         ]
-        for fmt in formats:
-            try: return datetime.strptime(ds, fmt)
-            except ValueError: pass
-        try:
-            # Handle ISO format with timezone (make naive for comparison)
-            if '+' in ds: ds = ds.split('+')[0]
-            if 'Z' in ds: ds = ds.split('Z')[0]
-            # Try parsing again after stripping potential timezone info
-            for iso_fmt in ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]:
-                try: return datetime.strptime(ds, iso_fmt)
-                except ValueError: pass
-            # Last attempt with fromisoformat (less reliable for varied inputs)
-            return datetime.fromisoformat(ds)
-        except ValueError:
-            return None
-        except Exception as e:
-            self._log(f"Unexpected error parsing datetime string '{ds}': {e}", level="WARNING")
-            return None
+
+        # Limit to max events
+        if len(self._history_list) > self._max_history_events:
+            self._history_list = self._history_list[:self._max_history_events]
+
+        return len(self._history_list) != original_len
 
     async def load_initial_history(self, api_client):
         """Loads initial history data from the API."""
@@ -616,14 +603,18 @@ class HistoryManager:
         for e in data:
             loaded_count += 1
             if not isinstance(e, dict): continue
+            title_raw = e.get('title', 'לא ידוע')
+            if "האירוע הסתיים" in title_raw or "בדקות הקרובות" in title_raw:
+                continue
+
             alert_date_str = e.get('alertDate')
-            t = self._parse_datetime_str(alert_date_str)
+            t = parse_datetime_str(alert_date_str, self._log)
 
             if not isinstance(t, datetime):
                 if alert_date_str: parse_errors += 1
-                continue # Skip if parsing failed
+                continue 
             if t < cutoff:
-                continue # Skip if older than cutoff
+                continue 
 
             city_raw = e.get('data','לא ידוע')
             std = standardize_name(city_raw)
@@ -636,24 +627,26 @@ class HistoryManager:
                 unknown_cities_logged.add(std)
 
             temp_hist.append({
-                'title': e.get('title','לא ידוע'),
+                'title': title_raw,
                 'city': orig_name,
                 'area': area,
-                'time': t # Keep as datetime object
+                'time': t 
             })
 
         if parse_errors > 0:
             self._log(f"Initial History Load: Encountered {parse_errors} entries with unparseable dates.", level="WARNING")
 
-        # Sort by time, newest first
         temp_hist.sort(key=lambda x: x.get('time', datetime.min), reverse=True)
         self._history_list = temp_hist
-        cities_in_period_raw = set(a['city'] for a in self._history_list)
+        
+        # Make sure we don't exceed limits right on load
+        self._prune_and_limit()
 
+        cities_in_period_raw = set(a['city'] for a in self._history_list)
         self._log(f"Initial history: Processed {loaded_count} raw alerts, kept {len(self._history_list)} within {self._hours_to_show}h ({len(cities_in_period_raw)} unique cities).")
 
     def update_history(self, title: str, std_payload_cities: set):
-        """Updates the history list with new alerts from the current payload. Pruning now happens in get_history_attributes."""
+        """Updates the history list with new alerts from the current payload."""
         now = datetime.now()
         unknown_cities_logged = set()
         added_count_this_call = 0
@@ -662,7 +655,7 @@ class HistoryManager:
             return
 
         for std in std_payload_cities:
-            if not std: continue # Skip empty standardized names
+            if not std: continue 
             det = self._lamas.get_city_details(std)
             area = DEFAULT_UNKNOWN_AREA
             orig_city_name = std
@@ -673,27 +666,26 @@ class HistoryManager:
                 self._log(f"History Add: City '{std}' not found. Using Area='{area}'.", level="WARNING")
                 unknown_cities_logged.add(std)
 
-            history_key = (title, std, area) # Key for deduplication within this poll
+            history_key = (title, std, area) 
 
             if history_key not in self._added_in_current_poll:
                 self._history_list.append({
                     'title': title,
-                    'city': orig_city_name, # Store original name
+                    'city': orig_city_name, 
                     'area': area,
-                    'time': now # Store current datetime object
+                    'time': now 
                 })
                 self._added_in_current_poll.add(history_key)
                 added_count_this_call += 1
 
         if added_count_this_call > 0:
-            # Sort the entire list after adding, newest first.
             self._history_list.sort(key=lambda x: x.get('time', datetime.min), reverse=True)
-
+            self._prune_and_limit()
 
     def restructure_alerts(self, alerts_list: list) -> dict:
-        """Groups alerts by title, then area, including city and time (HH:MM:SS). Expects a list of pre-processed alerts."""
-        structured_data = {}
-        if not alerts_list: return structured_data
+        """Groups alerts by title, then area, including city and time."""
+        structured_data = defaultdict(lambda: defaultdict(list))
+        if not alerts_list: return {}
 
         for alert in alerts_list:
             if not isinstance(alert, dict):
@@ -703,48 +695,35 @@ class HistoryManager:
             title = alert.get('title', 'לא ידוע')
             area  = alert.get('area', DEFAULT_UNKNOWN_AREA)
             city  = alert.get('city', 'לא ידוע')
-            time_str = alert.get('time', '') # String time from previous step
+            time_str = alert.get('time', '') 
 
-            time_display = "??:??:??" # Default
+            time_display = "??:??:??" 
             if isinstance(time_str, str) and ' ' in time_str and ':' in time_str:
                 try:
-                    # Extract just the time part (HH:MM:SS)
                     time_display = time_str.split(' ')[1]
                 except IndexError:
                     self._log(f"Restructure: Could not split time from string '{time_str}' for '{city}'. Using default.", level="DEBUG")
-            elif isinstance(time_str, str) and time_str: # Log unexpected non-empty strings
+            elif isinstance(time_str, str) and time_str: 
                 self._log(f"Restructure: Unexpected time string format '{time_str}' for '{city}'. Using default.", level="DEBUG")
 
-            area_dict = structured_data.setdefault(title, {})
-            city_list_in_area = area_dict.setdefault(area, [])
-            # Current logic allows duplicates here if input list has them.
-            city_list_in_area.append({'city': city, 'time': time_display})
+            structured_data[title][area].append({'city': city, 'time': time_display})
 
-        # Sort cities within each area alphabetically AFTER grouping
         for title_group in structured_data.values():
             for area_group in title_group.values():
                 area_group.sort(key=lambda x: x.get('city', ''))
 
-        return structured_data
+        # Return as a standard dict to prevent JSON serialization issues with defaultdict
+        return {k: dict(v) for k, v in structured_data.items()}
 
     def get_history_attributes(self) -> dict:
         """
-        Generates attributes for history sensors. It prunes alerts by time,
-        groups/merges them, and finally limits the total number of events.
+        Generates attributes for history sensors.
+        We assume self._history_list is already pruned via _prune_and_limit().
         """
-        # === Step 1: Pruning based on 'hours_to_show' ===
-        now = datetime.now()
-        cutoff = now - timedelta(hours=self._hours_to_show)
-        pruned_history_list = [
-            a for a in self._history_list
-            if isinstance(a.get('time'), datetime) and a['time'] >= cutoff
-        ]
-
-        # === Step 2: Aggregate alerts into event blocks and merge titles ===
-        city_event_blocks = {}
+        city_event_blocks = defaultdict(list)
         merge_window = timedelta(minutes=50)
 
-        for alert in pruned_history_list:
+        for alert in self._history_list:
             if not all(k in alert for k in ['city', 'time']) or not isinstance(alert.get('time'), datetime):
                 self._log(f"Merge Logic: Skipping malformed history entry: {alert}", level="WARNING")
                 continue
@@ -752,8 +731,8 @@ class HistoryManager:
             city_name = alert['city']
             alert_time = alert['time']
 
-            if city_name not in city_event_blocks:
-                city_event_blocks[city_name] = [[alert]]
+            if not city_event_blocks[city_name]:
+                city_event_blocks[city_name].append([alert])
                 continue
 
             latest_time_in_last_block = city_event_blocks[city_name][-1][0]['time']
@@ -786,13 +765,6 @@ class HistoryManager:
 
         merged_history_with_dt.sort(key=lambda x: x.get('time', datetime.min), reverse=True)
 
-        # === Step 3: Limit the number of events to prevent oversized attributes === ### NEW LOGIC ###
-        original_count = len(merged_history_with_dt)
-        if original_count > self._max_history_events:
-            self._log(f"History contains {original_count} alert events, which is over the limit. Truncating to the newest {self._max_history_events}.", level="DEBUG")
-            merged_history_with_dt = merged_history_with_dt[:self._max_history_events]
-
-        # === Step 4: Format the (potentially limited) list for HA attributes ===
         final_history_list_for_ha = []
         final_cities_set = set()
 
@@ -813,10 +785,8 @@ class HistoryManager:
             })
             final_cities_set.add(city_name)
 
-        # === Step 5: Restructure the formatted list for the grouped attribute ===
         final_grouped_structure = self.restructure_alerts(final_history_list_for_ha)
 
-        # === Step 6: Return the final attributes structure ===
         return {
             "cities_past_24h": sorted(list(final_cities_set)),
             "last_24h_alerts": final_history_list_for_ha,
@@ -834,29 +804,7 @@ class FileManager:
         self._day_names = day_names_map
         self._timer_duration = timer_duration
         self._log = logger
-        self._last_saved_alert_id = None # Track last ID saved to CSV/TXT
-
-    def _parse_datetime_str(self, ds: str):
-        """Parses various datetime string formats into datetime objects."""
-        if not ds or not isinstance(ds, str): return None
-        ds = ds.strip().strip('"')
-        formats = [
-            "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S",
-            "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"
-        ]
-        for fmt in formats:
-            try: return datetime.strptime(ds, fmt)
-            except ValueError: pass
-        try:
-            if '+' in ds or 'Z' in ds:
-                dt_str = ds.split('+')[0].split('Z')[0]
-                for iso_fmt in ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]:
-                    try: return datetime.strptime(dt_str, iso_fmt)
-                    except ValueError: pass
-            return datetime.fromisoformat(ds.replace('Z', '+00:00'))
-        except ValueError:
-            self._log(f"FileManager: Failed to parse datetime '{ds}'", level="WARNING")
-            return None
+        self._last_saved_alert_id = None 
 
     def get_from_json(self):
         """Loads the last alert state from the JSON backup file."""
@@ -866,7 +814,6 @@ class FileManager:
         try:
             with open(path, "r", encoding='utf-8-sig') as f:
                 data = json.load(f)
-            # Basic validation: Ensure it's a dict and has some expected keys
             if isinstance(data, dict) and ('id' in data or 'title' in data):
                 return data
             self._log(f"JSON backup content invalid or empty: {path}", level="WARNING")
@@ -902,7 +849,7 @@ class FileManager:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except PermissionError as e:
             self._log(f"Permission error writing JSON backup to {path}: {e}", level="ERROR")
-        except TypeError as e: # Catch non-serializable data
+        except TypeError as e: 
             self._log(f"Error writing JSON backup to {path}: Data not JSON serializable - {e}", level="ERROR")
         except Exception as e:
             self._log(f"Error writing JSON backup to {path}: {e}", level="ERROR")
@@ -913,7 +860,6 @@ class FileManager:
             return
 
         alert_id = attrs.get('id', 0)
-        # Prevent saving the same alert window summary multiple times if called rapidly after reset
         if alert_id == self._last_saved_alert_id and alert_id != 0:
             return
 
@@ -922,12 +868,10 @@ class FileManager:
             self._log("History file saving skipped (TXT or CSV path missing).", level="WARNING")
             return
 
-
-        # Determine timestamp details from the last update of the window
         fmt_time, fmt_date, day_name_he = "שגיאה", "שגיאה", "שגיאה"
         try:
-            last_update_str = attrs.get("last_changed") # Should be ISO format string
-            last_update_dt = self._parse_datetime_str(last_update_str) or datetime.now() # Fallback to now
+            last_update_str = attrs.get("last_changed") 
+            last_update_dt = parse_datetime_str(last_update_str, self._log) or datetime.now() 
             event_dt = last_update_dt
 
             fmt_time = event_dt.strftime('%H:%M:%S')
@@ -939,12 +883,10 @@ class FileManager:
             self._log(f"Error processing time for history file context: {e}", level="ERROR")
             date_str = "\nשגיאה בעיבוד זמן"
 
-        # --- Save to TXT ---
         try:
             os.makedirs(os.path.dirname(txt_p), exist_ok=True)
             with open(txt_p, 'a', encoding='utf-8-sig') as f:
                 f.write(date_str + "\n")
-                # Use the full message string if available, fallback to others
                 message_to_write = attrs.get("full_message_str", attrs.get("alert_alt", attrs.get("text_status", "אין פרטים")))
                 f.write(message_to_write + "\n")
         except PermissionError as e:
@@ -952,34 +894,33 @@ class FileManager:
         except Exception as e:
             self._log(f"Error writing TXT history to {txt_p}: {e}", level="ERROR")
 
-        # --- Save to CSV ---
         try:
-            self.create_csv_header_if_needed() # Ensure header exists before appending
+            self.create_csv_header_if_needed() 
 
             csv_data = [
                 str(alert_id),
                 day_name_he,
                 fmt_date,
                 fmt_time,
-                attrs.get('prev_title', 'N/A'),
-                attrs.get('prev_data_count', 0),
-                attrs.get('prev_areas_alert_str', ''),
-                attrs.get('prev_alerts_cities_str', ''),
-                attrs.get('prev_desc', ''),
-                attrs.get('prev_alerts_count', 0) 
+                attrs.get('title', 'N/A'),
+                attrs.get('data_count', 0),
+                attrs.get('areas', ''),
+                attrs.get('data', ''),     
+                attrs.get('desc', ''),
+                attrs.get('alerts_count', 0) 
             ]
 
             output = StringIO()
             writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
             writer.writerow(csv_data)
-            line = output.getvalue().strip() # Get the formatted line
+            line = output.getvalue().strip() 
             output.close()
 
             os.makedirs(os.path.dirname(csv_p), exist_ok=True)
             with open(csv_p, 'a', encoding='utf-8-sig', newline='') as f:
                 f.write(line + "\n")
 
-            self._last_saved_alert_id = alert_id # Mark this ID as saved
+            self._last_saved_alert_id = alert_id 
 
         except PermissionError as e:
             self._log(f"Permission error writing CSV history to {csv_p}: {e}", level="ERROR")
@@ -1006,22 +947,21 @@ class FileManager:
             with open(path, 'w', encoding='utf-8-sig') as f:
                 json.dump(geojson_data, f, ensure_ascii=False, indent=2)
 
-            # Adjust logging verbosity based on file type and content
             log_level = "DEBUG"
-            if "latest" in path and num_features > 0: log_level = "INFO" # Log active alerts clearly
-            elif "24h" in path and num_features > 0: log_level = "DEBUG" # History less critical
-            elif "latest" in path and num_features == 0: log_level = "DEBUG" # Idle state less verbose
+            if "latest" in path and num_features > 0: log_level = "INFO" 
+            elif "24h" in path and num_features > 0: log_level = "DEBUG" 
+            elif "latest" in path and num_features == 0: log_level = "DEBUG" 
 
-            # Log only if there are features or it's the history file (to confirm it updated)
             if num_features > 0 or "24h" in path :
                 self._log(f"Successfully wrote GeoJSON ({num_features} features) to: {path}", level=log_level)
 
         except PermissionError as e:
             self._log(f"PERMISSION ERROR writing GeoJSON to {path}: {e}. Check permissions.", level="ERROR")
-        except TypeError as e: # Catch non-serializable data
+        except TypeError as e: 
             self._log(f"Error writing GeoJSON to {path}: Data not JSON serializable - {e}", level="ERROR")
         except Exception as e:
             self._log(f"Error writing GeoJSON to {path}: {e}", level="ERROR", exc_info=True)
+
 
 # ----------------------------------------------------------------------
 # Main AppDaemon Class: Red_Alerts_Israel 
@@ -1031,19 +971,20 @@ class Red_Alerts_Israel(Hass):
     async def initialize(self):
         """Initializes the AppDaemon application."""
         self.log("--------------------------------------------------")
-        self.log("       Initializing Red Alerts Israel App")
+        self.log("        Initializing Red Alerts Israel App")
         self.log("--------------------------------------------------")
-        #self.set_namespace("red_alert")
+        
         global _IS_RAI_RUNNING
         if _IS_RAI_RUNNING:
             self.log("Red_Alerts_Israel is already running – skipping duplicate initialize.", level="WARNING")
             return
         _IS_RAI_RUNNING = True
-        atexit.register(self._cleanup_on_exit) # Register cleanup function
+        atexit.register(self._cleanup_on_exit) 
 
         # --- Configuration Loading & Validation ---
         self.interval = self.args.get("interval", 5)
         self.timer_duration = self.args.get("timer", 120)
+        self.current_timer_duration = self.timer_duration
         self.save_2_file = self.args.get("save_2_file", True)
         self.sensor_name = self.args.get("sensor_name", "red_alert")
         self.city_names_config = self.args.get("city_names", [])
@@ -1053,7 +994,7 @@ class Red_Alerts_Israel(Hass):
         self.ha_event = self.args.get("event", True)
 
         # Validate config types
-        if not isinstance(self.interval, (int, float)) or self.interval <= 1: # Interval should be > 1 sec
+        if not isinstance(self.interval, (int, float)) or self.interval <= 1: 
             self.log(f"Invalid 'interval' ({self.interval}), must be > 1. Using default 5s.", level="WARNING")
             self.interval = 5
         if not isinstance(self.timer_duration, (int, float)) or self.timer_duration <= 0:
@@ -1097,8 +1038,7 @@ class Red_Alerts_Israel(Hass):
                 "geojson_history": os.path.join(www_base, f"{base}_24h.geojson"),
                 "lamas_local":     os.path.join(script_directory, "lamas_data.json")
             }
-            #self.log(f"File Paths: www={www_base}, lamas={self.file_paths['lamas_local']}", level="DEBUG")
-            self._verify_www_writeable(www_base) # Verify write access
+            self._verify_www_writeable(www_base) 
         else:
             self.log("Could not determine www path. File saving features will be disabled.", level="ERROR")
             self.save_2_file = False
@@ -1111,7 +1051,7 @@ class Red_Alerts_Israel(Hass):
             'Referer': 'https://www.oref.org.il/',
             'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json',
             'Accept-Encoding': 'gzip, deflate, br', 'Accept-Language': 'he,en;q=0.9',
-            'Connection': 'keep-alive', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' # Try to avoid caching
+            'Connection': 'keep-alive', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' 
         }
         timeout = ClientTimeout(total=15, connect=5, sock_connect=5, sock_read=10)
         connector = TCPConnector(limit_per_host=5, keepalive_timeout=30, enable_cleanup_closed=True)
@@ -1120,8 +1060,8 @@ class Red_Alerts_Israel(Hass):
         )
 
         api_urls = {
-            "live":         f"https://www.oref.org.il/WarningMessages/alert/alerts.json", #?v={int(time.time())}", # Add timestamp to try and bypass cache
-            "history":      f"https://www.oref.org.il/WarningMessages/alert/History/AlertsHistory.json", #?v={int(time.time())}",
+            "live":         f"https://www.oref.org.il/WarningMessages/alert/alerts.json", 
+            "history":      f"https://www.oref.org.il/WarningMessages/alert/History/AlertsHistory.json", 
             "lamas_github": "https://raw.githubusercontent.com/idodov/RedAlert/main/apps/red_alerts_israel/lamas_data.json"
         }
         self.api_client = OrefAPIClient(self.session, api_urls, self.log)
@@ -1130,11 +1070,11 @@ class Red_Alerts_Israel(Hass):
         self.alert_sequence_count = 0
         self.no_active_alerts_polls = 0
         self.last_alert_time = None
-        self.last_processed_alert_id = None # Initialize tracker for unique alerts
-        self.window_alerts_grouped = {} # Stores alerts grouped by title/area within the current window
-        self.prev_alert_final_attributes = None # Stores the full attribute set of the last update
-        self.cities_past_window_std = set() # Stores all unique standardized cities for the current window
-        self.test_alert_cycle_flag = 0 # 0: inactive, 1: active test window
+        self.last_processed_alert_id = None 
+        self.window_alerts_grouped = defaultdict(lambda: defaultdict(set)) 
+        self.prev_alert_final_attributes = None 
+        self.cities_past_window_std = set() 
+        self.test_alert_cycle_flag = 0 
         self.test_alert_start_time = 0
         self._poll_running = False
         self._terminate_event = asyncio.Event()
@@ -1147,7 +1087,6 @@ class Red_Alerts_Israel(Hass):
                                 api_urls["lamas_github"], self.api_client, self.log
                             )
         self.alert_processor  = AlertProcessor(self.lamas_manager, ICONS_AND_EMOJIS, self.log)
-        # Ensure HistoryManager gets the timer_duration for its deduplication
         self.history_manager  = HistoryManager(self.hours_to_show, self.lamas_manager, self.log, self.timer_duration)
         self.file_manager     = FileManager(self.file_paths, self.save_2_file, DAY_NAMES, self.timer_duration, self.log)
 
@@ -1163,17 +1102,16 @@ class Red_Alerts_Israel(Hass):
             error_attrs = {'error': 'Lamas data failed to load', 'status': 'error', 'timestamp': datetime.now().isoformat()}
             try: await self.set_state(self.main_sensor, state="unavailable", attributes=error_attrs)
             except Exception as e_set: self.log(f"Error setting sensor to unavailable state after Lamas failure: {e_set}", level="ERROR")
-            _IS_RAI_RUNNING = False # Clear running flag
-            await self.terminate() # Attempt graceful shutdown
-            return # Stop initialization
+            _IS_RAI_RUNNING = False 
+            await self.terminate() 
+            return 
 
         # --- Validate Configured City Names ---
         self._validate_configured_cities()
 
         # --- Initialize HA Entities and Load Initial Data ---
-        #self.log("Ensuring HA entities exist and loading initial data...")
         await self._initialize_ha_sensors()
-        await self._load_initial_data() # Loads history, sets initial 'off' states, saves initial GeoJSON
+        await self._load_initial_data() 
 
         # --- Register Test Boolean Listener ---
         try:
@@ -1185,24 +1123,20 @@ class Red_Alerts_Israel(Hass):
 
         # --- Start Polling Loop ---
         self.log("Scheduling first API poll.")
-        self.run_in(self._poll_alerts_callback_sync, 5) # Start polling after 5 seconds
+        self.run_in(self._poll_alerts_callback_sync, 5) 
 
         # Update sensor status to running 
         running_attrs = {'script_status': 'running', 'timestamp': datetime.now().isoformat()}
         try:
-            # Fetch current state to merge attributes if possible
             current_main_state = await self.get_state(self.main_sensor, attribute="all")
             if current_main_state and 'attributes' in current_main_state:
-                # Preserve existing attributes unless they should be overwritten
                 base_attrs = current_main_state.get('attributes', {})
-                # Avoid overwriting important state if sensor was somehow active
                 if current_main_state.get('state', 'off') == 'off':
                     merged_attrs = {**base_attrs, **running_attrs}
                 else:
-                    merged_attrs = {**base_attrs, 'script_status': 'running'} # Just update status
+                    merged_attrs = {**base_attrs, 'script_status': 'running'} 
                 await self.set_state(self.main_sensor, state=current_main_state.get('state', 'off'), attributes=merged_attrs)
             else:
-                # Fallback if state couldn't be fetched or has no attributes
                 await self.set_state(self.main_sensor, state='off', attributes=running_attrs)
         except Exception as e:
             self.log(f"Error setting running status attribute: {e}", level="WARNING")
@@ -1213,22 +1147,19 @@ class Red_Alerts_Israel(Hass):
 
     def _get_www_path(self):
         """Tries to determine the Home Assistant www path."""
-        # Prefer HA config dir if available via AppDaemon context
         ha_config_dir_options = ["/homeassistant", "/config", "/usr/share/hassio/homeassistant", "/root/config"]
         for d in ha_config_dir_options:
             www_path = os.path.join(d, "www")
             if os.path.isdir(www_path):
                 return www_path
 
-        # Fallback to standard HA path
         ha_config_dir = getattr(self, 'config_dir', None)
         if ha_config_dir and os.path.isdir(os.path.join(ha_config_dir, 'www')):
             self.log(f"Using www path from HA config dir: {os.path.join(ha_config_dir, 'www')}", level="INFO")
             return os.path.join(ha_config_dir, 'www')
 
-        # Last resort: relative to AppDaemon config dir? (Less reliable)
-        ad_config_dir = getattr(self, 'config_dir', script_directory) # Use script dir if AD config unknown
-        potential_ha_config = os.path.dirname(ad_config_dir) # Guess HA config is parent of AD config
+        ad_config_dir = getattr(self, 'config_dir', script_directory) 
+        potential_ha_config = os.path.dirname(ad_config_dir) 
         www_path_guess = os.path.join(potential_ha_config, "www")
         if os.path.isdir(www_path_guess):
             self.log(f"Using guessed www path relative to AppDaemon config: {www_path_guess}", level="WARNING")
@@ -1239,14 +1170,14 @@ class Red_Alerts_Israel(Hass):
 
     def _verify_www_writeable(self, www_base):
         """Checks if the www directory is writeable and logs errors."""
-        if not self.save_2_file: return # Skip if saving is disabled
+        if not self.save_2_file: return 
         try:
             os.makedirs(www_base, exist_ok=True)
             test_file = os.path.join(www_base, f".{self.sensor_name}_write_test_{random.randint(1000,9999)}")
             with open(test_file, 'w') as f: f.write("test")
             os.remove(test_file)
         except PermissionError as e:
-            self.log(f"PERMISSION ERROR creating/writing to www directory '{www_base}': {e}. Check permissions for AppDaemon user/process. Disabling file saving.", level="ERROR")
+            self.log(f"PERMISSION ERROR creating/writing to www directory '{www_base}': {e}. Check permissions. Disabling file saving.", level="ERROR")
             self.save_2_file = False
         except OSError as e:
             self.log(f"OS ERROR accessing www directory '{www_base}': {e}. Disabling file saving.", level="ERROR")
@@ -1258,7 +1189,7 @@ class Red_Alerts_Israel(Hass):
     def _validate_configured_cities(self):
         """Validates cities from config against loaded Lamas data."""
         self.city_names_self_std = set()
-        if not self.city_names_config: # Already checked it's a list
+        if not self.city_names_config: 
             self.log("No 'city_names' provided in configuration.", level="INFO")
             return
 
@@ -1290,7 +1221,7 @@ class Red_Alerts_Israel(Hass):
         elif found_all and valid_count > 0:
             self.log(f"All {valid_count} configured city_names validated successfully.", level="INFO")
         elif valid_count > 0:
-            self.log(f"Configured city_names validation complete. {len(self.city_names_self_std)} unique valid names processed. Some warnings issued (see above).", level="WARNING")
+            self.log(f"Configured city_names validation complete. {len(self.city_names_self_std)} unique valid names processed. Some warnings issued.", level="WARNING")
 
     def _poll_alerts_callback_sync(self, kwargs):
         """Callback trampoline to run the async poll function. Prevents overlapping runs."""
@@ -1305,7 +1236,7 @@ class Red_Alerts_Israel(Hass):
         try:
             if self._terminate_event.is_set():
                 self.log("Termination signal received, skipping poll.", level="INFO")
-                return # Don't poll or schedule next if terminating
+                return 
 
             await self.poll_alerts()
 
@@ -1316,11 +1247,8 @@ class Red_Alerts_Israel(Hass):
             except Exception as set_err:
                 self.log(f"Error setting error status on sensor: {set_err}", level="ERROR")
         finally:
-            self._poll_running = False # Release the lock
-            end_time = time.monotonic()
-            duration = end_time - start_time
-
-            # Check again if termination is requested before scheduling next
+            self._poll_running = False 
+            
             if not self._terminate_event.is_set():
                 self.run_in(self._poll_alerts_callback_sync, self.interval)
             else:
@@ -1329,23 +1257,18 @@ class Red_Alerts_Israel(Hass):
     def terminate(self):
         """
         Synchronous callback invoked by AppDaemon when it’s shutting down.
-        Schedules the async termination routine so we can still await Home Assistant calls.
         """
         self.log("AppDaemon shutdown detected: scheduling async termination...", level="INFO")
-
-        # Wake up any poll waiting on _terminate_event
         if hasattr(self, "_terminate_event"):
             try:
                 self._terminate_event.set()
             except Exception:
                 pass
-
-        # Schedule the real async cleanup
         self.create_task(self._async_terminate())
 
     async def _async_terminate(self):
         """
-        Gracefully shut down: update your sensors to 'terminated', close HTTP session, etc.
+        Gracefully shut down: update your sensors to 'terminated', close HTTP session.
         """
         self.log("--------------------------------------------------")
         self.log("Async Terminate: cleaning up Red Alerts Israel App")
@@ -1355,15 +1278,12 @@ class Red_Alerts_Israel(Hass):
         if not _IS_RAI_RUNNING:
             return
 
-        # Prevent further polls
         _IS_RAI_RUNNING = False
         if hasattr(self, "_terminate_event"):
             self._terminate_event.set()
 
-        # Give one iteration back to the loop
         await asyncio.sleep(0)
 
-        # Mark your two binary_sensors as off/terminated
         term_attrs = {
             "script_status": "terminated",
             "timestamp": datetime.now().isoformat()
@@ -1379,7 +1299,6 @@ class Red_Alerts_Israel(Hass):
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Finally, close your aiohttp session if it’s still open
         session = getattr(self, "session", None)
         if session and not session.closed:
             try:
@@ -1393,7 +1312,6 @@ class Red_Alerts_Israel(Hass):
     def _cleanup_on_exit(self):
         """Synchronous cleanup function called by atexit."""
         global _IS_RAI_RUNNING
-        # If we’re not marked running, nothing to do
         if not _IS_RAI_RUNNING:
             return
 
@@ -1402,20 +1320,15 @@ class Red_Alerts_Israel(Hass):
         _IS_RAI_RUNNING = False
 
         try:
-            # Try to get the active event loop
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
                 loop = None
 
             if loop and loop.is_running():
-                # 1) wake up any poll that’s waiting on _terminate_event
                 loop.call_soon_threadsafe(self._terminate_event.set)
-
-                # 2) schedule the terminate() coroutine to actually run
                 loop.call_soon_threadsafe(asyncio.create_task, self.terminate())
             else:
-                # No loop to schedule on — run terminate() directly
                 try:
                     asyncio.run(self.terminate())
                 except Exception as e2:
@@ -1424,25 +1337,14 @@ class Red_Alerts_Israel(Hass):
         except Exception as e:
             log_func(f"atexit: Error accessing/signalling loop: {e}", level="WARNING")
 
-
-
-    def _parse_datetime_str(self, ds: str):
-        """Delegates datetime parsing to the HistoryManager for consistency."""
-        # Ensure history_manager exists before calling
-        if hasattr(self, 'history_manager'):
-            return self.history_manager._parse_datetime_str(ds)
-        else:
-            self.log("HistoryManager not initialized when parsing datetime.", level="ERROR")
-            return None 
-
     def _is_iso_format(self, ds: str) -> str:
         """Parses a datetime string and returns it in ISO format with microseconds, or now() if invalid."""
-        dt = self._parse_datetime_str(ds)
+        dt = parse_datetime_str(ds, self.log)
         now_fallback = datetime.now().isoformat(timespec='microseconds')
         if dt:
             try:
                 return dt.isoformat(timespec='microseconds')
-            except Exception as e: # Catch potential errors during formatting
+            except Exception as e: 
                 self.log(f"Error formatting datetime '{dt}' to ISO: {e}. Falling back to current time.", level="WARNING")
                 return now_fallback
         else:
@@ -1452,7 +1354,6 @@ class Red_Alerts_Israel(Hass):
         """Ensures required HA entities exist with default states/attributes."""
         now_iso = datetime.now().isoformat(timespec='microseconds')
 
-        # Attributes for idle state (used for init and reset)
         idle_attrs = {
             "active_now": False, "special_update": False, "id": 0, "cat": 0, "title": "אין התרעות", "desc": "טוען נתונים...",
             "areas": "", "cities": [], "data": "", "data_count": 0, "duration": 0,
@@ -1462,7 +1363,7 @@ class Red_Alerts_Israel(Hass):
             "prev_cat": 0, "prev_title": "", "prev_desc": "", "prev_areas": "",
             "prev_cities": [], "prev_data": "", "prev_data_count": 0, "prev_duration": 0,
             "prev_last_changed": now_iso, "prev_alerts_count": 0,
-            "alert_wa": "", "alert_tg": "", # Initialize WA/TG attributes
+            "alert_wa": "", "alert_tg": "", 
             "script_status": "initializing"
         }
         history_default_attrs = {
@@ -1495,10 +1396,8 @@ class Red_Alerts_Israel(Hass):
 
                 if not entity_exists:
                     self.log(f"Entity {entity_id} not found. Creating with initial state.", level="INFO")
-                    init_tasks.append(self.set_state(entity_id, state=state, attributes=attrs))
-                else:
-                    # Set initial state even if exists to ensure consistency on restart
-                    init_tasks.append(self.set_state(entity_id, state=state, attributes=attrs))
+                
+                init_tasks.append(self.set_state(entity_id, state=state, attributes=attrs))
 
             except Exception as e:
                 self.log(f"Error preparing init task for entity {entity_id}: {e}", level="WARNING", exc_info=True)
@@ -1509,7 +1408,6 @@ class Red_Alerts_Israel(Hass):
                 if isinstance(res, Exception):
                     self.log(f"Error initializing entity task {i}: {res}", level="ERROR")
 
-        # Initialize input_text separately
         try:
             text_entity_exists = await self.entity_exists(self.main_text)
             text_attrs = {
@@ -1519,20 +1417,13 @@ class Red_Alerts_Israel(Hass):
             }
             if not text_entity_exists:
                 self.log(f"Entity {self.main_text} not found. Creating with initial text 'טוען...'.", level="INFO")
-                # Create with placeholder text
                 await self.set_state(self.main_text, state="טוען...", attributes=text_attrs)
-            # --- Do NOT update state here if it exists ---
 
-            # Initialize test boolean
             bool_entity_exists = await self.entity_exists(self.activate_alert)
             bool_attrs = {"friendly_name": f"{self.sensor_name} Test Trigger"}
             if not bool_entity_exists:
                 self.log(f"Entity {self.activate_alert} not found. Creating.", level="INFO")
-                await self.set_state(self.activate_alert, state="off", attributes=bool_attrs)
-            else:
-                # Ensure it's off on restart
-                await self.set_state(self.activate_alert, state="off", attributes=bool_attrs)
-
+            await self.set_state(self.activate_alert, state="off", attributes=bool_attrs)
 
         except Exception as e:
             self.log(f"Error checking/initializing input/boolean entities: {e}", level="WARNING", exc_info=True)
@@ -1541,27 +1432,20 @@ class Red_Alerts_Israel(Hass):
 
     async def _load_initial_data(self):
         """Loads history, gets backup, sets initial 'off' states with merged data, and saves initial files."""
-        #self.log("Loading initial data (history & backup)...")
-
-        # 1. Load historical alert data
         await self.history_manager.load_initial_history(self.api_client)
-        # Get attributes AFTER loading
         history_attrs = self.history_manager.get_history_attributes()
 
-        # 2. Try to load the last state from the JSON backup
         backup = self.file_manager.get_from_json()
         prev_attrs_formatted = {}
         if backup:
             prev_attrs_formatted = self._format_backup_data_as_prev(backup)
         else:
-            # Define default prev attributes here
             prev_attrs_formatted = {
                 "prev_cat": 0, "prev_special_update": False, "prev_title": "", "prev_desc": "", "prev_areas": "",
                 "prev_cities": [], "prev_data": "", "prev_data_count": 0, "prev_duration": 0,
                 "prev_last_changed": datetime.now().isoformat(timespec='microseconds'), "prev_alerts_count": 0
             }
 
-        # 3. Define the initial 'off' state attributes for main/city sensors
         now_iso = datetime.now().isoformat(timespec='microseconds')
         initial_state_attrs = {
             "active_now": False, "special_update": False, "id": 0, "cat": 0, "title": "אין התרעות", "desc": "שגרה",
@@ -1569,14 +1453,12 @@ class Red_Alerts_Israel(Hass):
             "icon": "mdi:check-circle-outline", "emoji": "✅", "alerts_count": 0,
             "last_changed": now_iso,
             "my_cities": sorted(list(set(self.city_names_config))),
-            **prev_attrs_formatted, # Merge the formatted previous state attributes
-            "script_status": "running" # Update status after loading
+            **prev_attrs_formatted, 
+            "script_status": "running" 
         }
 
-        # 4. Update main and city sensors with the initial 'off' state
         try:
             tasks = [
-                # --- Do NOT update input_text here ---
                 self.set_state(self.main_sensor, state="off", attributes=initial_state_attrs),
                 self.set_state(self.city_sensor, state="off", attributes=initial_state_attrs.copy()),
                 self.set_state(self.main_sensor_pre_alert, state="off", attributes=initial_state_attrs.copy()),
@@ -1588,71 +1470,61 @@ class Red_Alerts_Israel(Hass):
         except Exception as e:
             self.log(f"Error setting initial 'off' states: {e}", level="WARNING", exc_info=True)
 
-        # 5. Update the dedicated history sensors using the loaded history_attrs
         try:
             count_cities = len(history_attrs.get("cities_past_24h", []))
             count_alerts = len(history_attrs.get("last_24h_alerts", []))
 
             tasks = []
             hist_cities_attrs = {
-                "cities_past_24h": history_attrs["cities_past_24h"],
-                "script_status": "running" # Add status
+                "cities_past_24h": history_attrs.get("cities_past_24h", []),
+                "script_status": "running" 
             }
             tasks.append(self.set_state(self.history_cities_sensor, state=str(count_cities), attributes=hist_cities_attrs))
 
             history_list_attr = {
-                "last_24h_alerts": history_attrs["last_24h_alerts"],
-                "script_status": "running" # Add status
+                "last_24h_alerts": history_attrs.get("last_24h_alerts", []),
+                "script_status": "running" 
             }
-
             tasks.append(self.set_state(self.history_list_sensor, state=str(count_alerts), attributes=history_list_attr))
 
             history_group_attr = {
-                "last_24h_alerts_group": history_attrs["last_24h_alerts_group"],
-                "script_status": "running" # Add status
+                "last_24h_alerts_group": history_attrs.get("last_24h_alerts_group", {}),
+                "script_status": "running" 
             }
-
             tasks.append(self.set_state(self.history_group_sensor, state=str(count_alerts), attributes=history_group_attr))
 
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
-                #self.log("Updated dedicated history sensors with loaded data.")
             else:
                 self.log("No history update tasks were executed.", level="WARNING")
 
         except Exception as e:
             self.log(f"Error setting dedicated history sensor states in _load_initial_data: {e}", level="WARNING", exc_info=True)
 
-        # 6. Save initial files (GeoJSON, ensure CSV header)
         if self.save_2_file:
             try:
-                # Create empty latest file
                 initial_latest_attrs = {
                     "title": "אין התרעות", "desc": "שגרה", "cat": 0, "cities": [],
                     "last_changed": datetime.now().isoformat(timespec='microseconds')
                 }
                 await self._save_latest_geojson(initial_latest_attrs)
-                # Create history file based on loaded history
-                await self._save_history_geojson(history_attrs) # Pass the loaded history attributes
-                # Ensure CSV header exists
+                await self._save_history_geojson(history_attrs) 
                 self.file_manager.create_csv_header_if_needed()
             except Exception as file_err:
                 self.log(f"Error during initial file creation: {file_err}", level="ERROR", exc_info=True)
 
         self.log("Initial data loading and state setting complete.")
 
-
     async def _process_active_alert(self, data, is_test=False):
         """
         Processes incoming alert data (real or test), updates state, history, and files.
         """
-        alert_id_from_data = data.get("id", "N/A") # Get ID for logging
+        alert_id_from_data = data.get("id", "N/A") 
         log_prefix = "[Test Alert]" if is_test else "[Real Alert]"
 
         now_dt = datetime.now()
         now_iso = now_dt.isoformat(timespec='microseconds')
 
-        # --- 1. Parse Incoming Data ---
         try:
             cat_str = data.get("cat", "1")
             cat = int(cat_str) if cat_str.isdigit() else 1
@@ -1661,43 +1533,37 @@ class Red_Alerts_Israel(Hass):
             title = data.get("title", "התרעה")
             raw_payload_cities = data.get("data", [])
             payload_cities_raw = []
+            
             if isinstance(raw_payload_cities, str):
                 payload_cities_raw = [c.strip() for c in raw_payload_cities.split(',') if c.strip()]
             elif isinstance(raw_payload_cities, list):
                 payload_cities_raw = [str(city) for city in raw_payload_cities if isinstance(city, (str, int))]
-            #stds_this_payload = set(standardize_name(n) for n in payload_cities_raw if n)
-            #self.log(f"{log_prefix} Parsed Payload: ID={aid}, Cat={cat}, Title='{title}', Cities(Std)={len(stds_this_payload)}", level="DEBUG")
 
-            # ===> FILTERING LOGIC <===
             forbidden_strings = ["בדיקה", "תרגיל"]
             filtered_cities_raw = []
             for city_name in payload_cities_raw:
-                # Check if any forbidden string is present in the current city name
                 if not any(forbidden in city_name for forbidden in forbidden_strings):
                     filtered_cities_raw.append(city_name)
-                else: # Optional: Log if a city was filtered out
+                else: 
                     self.log(f"{log_prefix} Filtering out city: '{city_name}' due to forbidden string.", level="INFO")
 
-            # If ALL cities were filtered out, skip processing this alert entirely
-            if not filtered_cities_raw and payload_cities_raw: # Check if original list had cities but filtered list is empty
-                self.log(f"{log_prefix} All cities in payload ID {data.get('id', 'N/A')} were filtered out. Skipping further processing for this payload.", level="INFO")
-                return # Stop processing this specific alert payload
+            if not filtered_cities_raw and payload_cities_raw: 
+                self.log(f"{log_prefix} All cities in payload ID {data.get('id', 'N/A')} were filtered out. Skipping further processing.", level="INFO")
+                return 
 
             stds_this_payload = set(standardize_name(n) for n in filtered_cities_raw if n)
 
-
         except Exception as e:
             self.log(f"{log_prefix} CRITICAL Error parsing alert data payload: {e}. Data: {data}", level="CRITICAL", exc_info=True)
-            return # Stop processing this payload
+            return 
 
-        # ===> Check for identical payload <===
-        if self.last_active_payload_details is not None and not is_test: # Apply only to real alerts for now
+        if self.last_active_payload_details is not None and not is_test: 
             is_identical = (
                 self.last_active_payload_details['id'] == aid and
                 self.last_active_payload_details['cat'] == cat and
                 self.last_active_payload_details['title'] == title and
                 self.last_active_payload_details['desc'] == desc and
-                self.last_active_payload_details['stds'] == stds_this_payload # Compare sets
+                self.last_active_payload_details['stds'] == stds_this_payload 
             )
 
             if is_identical:
@@ -1705,49 +1571,37 @@ class Red_Alerts_Israel(Hass):
                 return
 
         self.last_active_payload_details = {
-            'id': aid,
-            'cat': cat,
-            'title': title,
-            'desc': desc,
-            'stds': stds_this_payload
+            'id': aid, 'cat': cat, 'title': title, 'desc': desc, 'stds': stds_this_payload
         }
 
-        # --- Check if sensor was previously off ---
         sensor_was_off = await self.get_state(self.main_sensor) == "off"
         if sensor_was_off:
             self.log(f"{log_prefix} Sensor was 'off'. Starting new alert window for ID: {aid}.", level="INFO")
             self.cities_past_window_std = set()
             self.alert_sequence_count = 0
-            self.window_alerts_grouped = {}
+            self.window_alerts_grouped.clear()
             if self.file_manager: self.file_manager.clear_last_saved_id()
             self.history_manager.clear_poll_tracker()
             self.last_processed_alert_id = None
             self.last_active_payload_details = None
 
-
-        # --- 2. Update History ---
-        # Call update first, then get attributes
         self.history_manager.clear_poll_tracker()
-        self.history_manager.update_history(title, stds_this_payload)
-        # Get the latest history attributes AFTER updating
+        if "האירוע הסתיים" not in title and "בדקות הקרובות" not in title:
+            self.history_manager.update_history(title, stds_this_payload)
+
         hist_attrs = self.history_manager.get_history_attributes()
-        # Ensure hist_attrs is valid for later steps
         if not isinstance(hist_attrs, dict):
             self.log(f"{log_prefix} Failed to get valid history attributes after update. Using fallback.", level="ERROR")
             hist_attrs = {"last_24h_alerts": [], "cities_past_24h": []}
 
-
-        # --- 3. Accumulate Overall Cities ---
         newly_added_cities_overall = stds_this_payload - self.cities_past_window_std
         if newly_added_cities_overall:
-            #self.log(f"{log_prefix} Adding {len(newly_added_cities_overall)} new unique cities to window (overall).", level="DEBUG")
             self.cities_past_window_std.update(newly_added_cities_overall)
 
-        # --- 3b. Populate Grouped Window Data ---
         unknown_cities_logged_grouped = set()
         current_payload_title = title
-        alert_group = self.window_alerts_grouped.setdefault(current_payload_title, {})
         populated_count_grouped = 0
+        
         for std in stds_this_payload:
             det = self.lamas_manager.get_city_details(std)
             area = DEFAULT_UNKNOWN_AREA
@@ -1756,34 +1610,30 @@ class Red_Alerts_Israel(Hass):
                 area = det.get("area", DEFAULT_UNKNOWN_AREA)
                 orig_city_name = det.get("original_name", std)
             elif std not in unknown_cities_logged_grouped:
-                # Reduce noise: Log only once per window if Lamas is missing entries
-                # self.log(f"{log_prefix} GroupedWindowData: City '{std}' not found. Area='{area}'.", level="WARNING")
                 unknown_cities_logged_grouped.add(std)
-            area_group = alert_group.setdefault(area, set())
-            if orig_city_name not in area_group:
-                area_group.add(orig_city_name)
-                populated_count_grouped += 1
+                
+            self.window_alerts_grouped[current_payload_title][area].add(orig_city_name)
+            populated_count_grouped += 1
+            
         if populated_count_grouped > 0:
             self.log(f"{log_prefix} Updated window_alerts_grouped for title '{current_payload_title}' with {populated_count_grouped} new entries.", level="DEBUG")
 
-        # --- 4. Update Window State Variables ---
         self.alert_sequence_count += 1
-
-        # --- 5. Reset the Idle Timer ---
         self.last_alert_time = time.time()
+        
+        if "האירוע הסתיים" in title or "בדקות הקרובות" in title:
+            self.current_timer_duration = 10
+        else:
+            self.current_timer_duration = self.timer_duration
 
-        # --- 6. Process Data for HA State ---
         try:
             info = self.alert_processor.process_alert_window_data(
-                category=cat,
-                title=title,
-                description=desc,
-                window_std_cities=self.cities_past_window_std, # Use accumulated set
-                window_alerts_grouped=self.window_alerts_grouped # Pass grouped data
+                category=cat, title=title, description=desc,
+                window_std_cities=self.cities_past_window_std, 
+                window_alerts_grouped=self.window_alerts_grouped 
             )
         except Exception as e:
             self.log(f"{log_prefix} Error calling alert_processor.process_alert_window_data: {e}", level="CRITICAL", exc_info=True)
-            # Create a minimal fallback info structure
             info = {
                 "areas_alert_str": "Error", "cities_list_sorted": list(self.cities_past_window_std), "data_count": len(self.cities_past_window_std),
                 "alerts_cities_str": "Error processing cities", "icon_alert": "mdi:alert-circle-outline", "icon_emoji": "🆘",
@@ -1792,16 +1642,14 @@ class Red_Alerts_Israel(Hass):
                 "full_message_list": [], "input_text_state": "שגיאה"
             }
 
-        # --- 7. Get Previous State Attributes ---
         prev_state_attrs = {}
         try:
             prev_ha_state_data = await self.get_state(self.main_sensor, attribute="all")
             if prev_ha_state_data and 'attributes' in prev_ha_state_data:
-                # Make a copy to avoid modifying the cached state? Or just read needed values.
                 prev_state_attrs = prev_ha_state_data['attributes']
         except Exception as e:
             self.log(f"{log_prefix} Error fetching previous state attributes: {e}", level="WARNING")
-        # Ensure essential prev keys exist, even if empty/default
+            
         default_prev = {
             "cat": 0, "title": "", "desc": "", "areas": "", "cities": [], "data": "",
             "data_count": 0, "duration": 0, "alerts_count": 0, "last_changed": now_iso
@@ -1809,166 +1657,82 @@ class Red_Alerts_Israel(Hass):
         for k, v in default_prev.items():
             prev_state_attrs.setdefault(k, v)
 
-
-        # --- 8. Construct Final Attributes ---
-        # Use info generated in step 6 and prev_state_attrs from step 7
-        #special_update = True if cat == 13 else False
-        # בדקות הקרובות צפויות להתקבל התרעות באזורך
-        special_update = True if "בדקות הקרובות" in title or "עדכון" in title or "שהייה בסמיכות" in title else False
+        special_update = True if "בדקות הקרובות" in title or "עדכון" in title or "שהייה בסמיכות" in title or "האירוע הסתיים" in title else False
 
         final_attributes = {
-            "active_now": True,
-            "special_update": special_update, # Is it advanced alert
-            "id": aid, # Latest ID
-            "cat": cat, # Latest category
-            "title": title, # Latest title
-            "desc": desc, # Latest description
-            "areas": info.get("areas_alert_str", ""), # Accumulated areas string
-            "cities": info.get("cities_list_sorted", []), # Accumulated cities list
-            "data": info.get("alerts_cities_str", ""), # Accumulated cities string (truncated if needed)
-            "data_count": info.get("data_count", 0), # Accumulated unique city count
-            "duration": info.get("duration", 0), # Latest duration
-            "icon": info.get("icon_alert", "mdi:alert"), # Latest icon
-            "emoji": info.get("icon_emoji", "❗"), # Latest emoji
-            "alerts_count": self.alert_sequence_count, # Window sequence count
-            "last_changed": now_iso, # Current update time
-            "my_cities": sorted(list(set(self.city_names_config))), # Static config list
-            "alert": info.get("text_status", ""), # Generated status text
-            "alert_alt": info.get("full_message_str", ""), # Generated detailed text
-            "alert_txt": info.get("alert_txt", ""), # Generated basic text
-            "alert_wa": info.get("text_wa_grouped", ""), # Grouped WA message
-            "alert_tg": info.get("text_tg_grouped", ""), # Grouped TG message
-            # Previous state values:
-            "prev_cat": prev_state_attrs.get("cat"),
-            "prev_title": prev_state_attrs.get("title"),
-            "prev_desc": prev_state_attrs.get("desc"),
-            "prev_areas": prev_state_attrs.get("areas"),
-            "prev_cities": prev_state_attrs.get("cities"),
-            "prev_data": prev_state_attrs.get("data"),
-            "prev_data_count": prev_state_attrs.get("data_count"),
-            "prev_duration": prev_state_attrs.get("duration"),
-            "prev_alerts_count": prev_state_attrs.get("alerts_count"),
-            "prev_last_changed": prev_state_attrs.get("last_changed"),
-            "prev_special_update": prev_state_attrs.get("special_update"),
-            "prev_alert_wa": prev_state_attrs.get("alert_wa"),
-            "prev_alert_tg": prev_state_attrs.get("alert_tg"),
-            "prev_icon": prev_state_attrs.get("icon"),
-            "prev_emoji": prev_state_attrs.get("emoji"),
-            "script_status": "running"
+            "active_now": True, "special_update": special_update, "id": aid, "cat": cat, 
+            "title": title, "desc": desc, "areas": info.get("areas_alert_str", ""), 
+            "cities": info.get("cities_list_sorted", []), "data": info.get("alerts_cities_str", ""), 
+            "data_count": info.get("data_count", 0), "duration": info.get("duration", 0), 
+            "icon": info.get("icon_alert", "mdi:alert"), "emoji": info.get("icon_emoji", "❗"), 
+            "alerts_count": self.alert_sequence_count, "last_changed": now_iso, 
+            "my_cities": sorted(list(set(self.city_names_config))), "alert": info.get("text_status", ""), 
+            "alert_alt": info.get("full_message_str", ""), "alert_txt": info.get("alert_txt", ""), 
+            "alert_wa": info.get("text_wa_grouped", ""), "alert_tg": info.get("text_tg_grouped", ""), 
+            "prev_cat": prev_state_attrs.get("cat"), "prev_title": prev_state_attrs.get("title"),
+            "prev_desc": prev_state_attrs.get("desc"), "prev_areas": prev_state_attrs.get("areas"),
+            "prev_cities": prev_state_attrs.get("cities"), "prev_data": prev_state_attrs.get("data"),
+            "prev_data_count": prev_state_attrs.get("data_count"), "prev_duration": prev_state_attrs.get("duration"),
+            "prev_alerts_count": prev_state_attrs.get("alerts_count"), "prev_last_changed": prev_state_attrs.get("last_changed"),
+            "prev_special_update": prev_state_attrs.get("special_update"), "prev_alert_wa": prev_state_attrs.get("alert_wa"),
+            "prev_alert_tg": prev_state_attrs.get("alert_tg"), "prev_icon": prev_state_attrs.get("icon"),
+            "prev_emoji": prev_state_attrs.get("emoji"), "script_status": "running"
         }
 
         if special_update:
             final_attributes["icon"] = "mdi:Alarm-Light-Outline"
             final_attributes["emoji"] = "🔜"
 
-        # --- 9. Check Attribute Size Limit ---
         try:
             if len(final_attributes.get("data", "")) > self.alert_processor.max_attr_len:
                 final_attributes["data"] = self.alert_processor._check_len(final_attributes["data"], final_attributes.get("data_count", 0), final_attributes.get("areas", ""), self.alert_processor.max_attr_len, "Final Data Attr Re-Check")
-            # Repeat for alert_wa, alert_tg if needed, though AlertProcessor should handle this.
         except Exception as size_err:
             self.log(f"{log_prefix} Error during final attribute size re-check: {size_err}", level="ERROR")
 
-        # --- 10. Store Final Attributes for potential next 'prev_' state ---
-        # Store this state BEFORE updating HA, so the *next* alert sees this as previous
         self.prev_alert_final_attributes = final_attributes.copy()
 
-        # --- 11. Determine City Sensor State ---
         city_sensor_should_be_on = bool(self.cities_past_window_std.intersection(self.city_names_self_std))
-        if is_test and bool(self.city_names_self_std): city_sensor_should_be_on = True # Force on for test if cities configured
+        if is_test and bool(self.city_names_self_std): city_sensor_should_be_on = True 
         city_state_final = "on" if city_sensor_should_be_on else "off"
 
-        # --- 12. Update Home Assistant States ---
         try:
             await self._update_ha_state(
-                main_state="on",
-                city_state=city_state_final,
-                text_state=info.get("input_text_state", "התרעה"), # Use state from 'info'
-                attributes=final_attributes, # Pass the fully constructed attributes
-                text_icon=info.get("icon_alert", "mdi:alert") # Use icon from 'info'
+                main_state="on", city_state=city_state_final, text_state=info.get("input_text_state", "התרעה"), 
+                attributes=final_attributes, text_icon=info.get("icon_alert", "mdi:alert") 
             )
         except Exception as e:
             self.log(f"{log_prefix} Error occurred during _update_ha_state call: {e}", level="ERROR", exc_info=True)
 
-        # --- 13. Update Dedicated History Sensors ---
-        # Use hist_attrs collected in Step 2
-        try:
-            count_cities = len(hist_attrs.get("cities_past_24h", []))
-            count_alerts = len(hist_attrs.get("last_24h_alerts", []))
-            tasks = []
-
-            hist_cities_attrs = {
-                "cities_past_24h": hist_attrs.get("cities_past_24h", []),
-                "script_status": "running" # <-- Fix: Added script_status
-            }
-            tasks.append(self.set_state(self.history_cities_sensor, state=str(count_cities), attributes=hist_cities_attrs))
-
-            history_list_attr = {
-                "last_24h_alerts": hist_attrs.get("last_24h_alerts", []),
-                "script_status": "running"
-            }
-
-            tasks.append(self.set_state(self.history_list_sensor, state=str(count_alerts), attributes=history_list_attr))
-
-
-            history_group_attr = {
-                "last_24h_alerts_group": hist_attrs.get("last_24h_alerts_group", {}),
-                "script_status": "running"
-            }
-
-            tasks.append(self.set_state(self.history_group_sensor, state=str(count_alerts), attributes=history_group_attr))
-
-            if tasks:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        except Exception as e:
-            self.log(f"{log_prefix} Unexpected error setting history sensor states: {e}", level="WARNING", exc_info=True)
-
-
-        # --- 14. Save Backup JSON & Update GeoJSON Files (Optimized) ---
         if self.save_2_file:
-            # --- JSON Backup & Latest GeoJSON (Only if ID changed) ---
-            current_alert_id = aid # Use the parsed ID for this payload
+            current_alert_id = aid 
             if current_alert_id != self.last_processed_alert_id:
-                # Prepare backup data using final_attributes
                 backup_data = {
-                    "id": final_attributes.get("id"),
-                    "cat": str(final_attributes.get("cat")),
-                    "title": final_attributes.get("title"),
-                    "data": final_attributes.get("cities", []), # Backup uses 'cities' list
-                    "desc": final_attributes.get("desc"),
-                    "alertDate": final_attributes.get("last_changed"), # Use consistent time
-                    "last_changed": final_attributes.get("last_changed"),
-                    "alerts_count": final_attributes.get("alerts_count")
+                    "id": final_attributes.get("id"), "cat": str(final_attributes.get("cat")),
+                    "title": final_attributes.get("title"), "data": final_attributes.get("cities", []), 
+                    "desc": final_attributes.get("desc"), "alertDate": final_attributes.get("last_changed"), 
+                    "last_changed": final_attributes.get("last_changed"), "alerts_count": final_attributes.get("alerts_count")
                 }
                 try:
                     self.file_manager.save_json_backup(backup_data)
                 except Exception as e:
                     self.log(f"{log_prefix} Error during save_json_backup call: {e}", level="ERROR", exc_info=True)
 
-                # Save Latest GeoJSON using final_attributes
                 try:
                     await self._save_latest_geojson(final_attributes)
                 except Exception as e:
                     self.log(f"{log_prefix} Error during _save_latest_geojson call: {e}", level="ERROR", exc_info=True)
 
-                # Update the last processed ID tracker
                 self.last_processed_alert_id = current_alert_id
 
-            # --- History GeoJSON (Update every time active alert processed) ---
             try:
-                # Pass hist_attrs collected in Step 2
                 await self._save_history_geojson(hist_attrs)
             except Exception as e:
                 self.log(f"{log_prefix} Error during _save_history_geojson call: {e}", level="ERROR", exc_info=True)
 
-        # --- 15. Fire MQTT & Home Assistant Event ---
         event_data_dict = {
             "id": aid, "category": cat, "title": title,
-            "cities": info.get("cities_list_sorted", []), # Use consistent accumulated list
-            "areas": info.get("areas_alert_str", ""), # Use consistent accumulated areas
-            "description": desc, "timestamp": now_iso,
-            "alerts_count": self.alert_sequence_count, # Window alert count
+            "cities": info.get("cities_list_sorted", []), "areas": info.get("areas_alert_str", ""), 
+            "description": desc, "timestamp": now_iso, "alerts_count": self.alert_sequence_count, 
             "is_test": is_test
         }
         if self.mqtt_topic:
@@ -1977,15 +1741,16 @@ class Red_Alerts_Israel(Hass):
             try:
                 payload_to_publish = json.dumps(event_data_dict, ensure_ascii=False)
                 await self.call_service("mqtt/publish", topic=mqtt_topic_name, payload=payload_to_publish, qos=0, retain=False)
-            except Exception as e: self.log(f"{log_prefix} Error publishing MQTT event to {mqtt_topic_name}: {e}", level="ERROR")
+            except Exception as e: 
+                self.log(f"{log_prefix} Error publishing MQTT event to {mqtt_topic_name}: {e}", level="ERROR")
         if self.ha_event:
             try:
                 ha_event_name = f"{self.sensor_name}_event"
-                await self.fire_event(ha_event_name, **event_data_dict) # Use await for fire_event
-            except Exception as e: self.log(f"{log_prefix} Error firing HA event '{ha_event_name}': {e}", level="ERROR")
+                await self.fire_event(ha_event_name, **event_data_dict) 
+            except Exception as e: 
+                self.log(f"{log_prefix} Error firing HA event '{ha_event_name}': {e}", level="ERROR")
 
         self.log(f"{log_prefix} Finished processing alert ID: {aid}. Window payloads: {self.alert_sequence_count}, Total unique cities in window: {len(self.cities_past_window_std)}.", level="INFO" if not is_test else "WARNING")
-
 
     async def _check_reset_sensors(self):
         """
@@ -1995,7 +1760,6 @@ class Red_Alerts_Israel(Hass):
         now = time.time()
         log_prefix = "[Sensor Reset Check]"
 
-        # Check if main sensor exists before getting state
         main_sensor_exists = await self.entity_exists(self.main_sensor)
         if not main_sensor_exists:
             self.log(f"{log_prefix} Main sensor {self.main_sensor} not found. Cannot check state.", level="WARNING")
@@ -2007,48 +1771,40 @@ class Red_Alerts_Israel(Hass):
         except Exception as e:
             self.log(f"{log_prefix} Error getting main sensor state: {e}. Assuming 'unknown'.", level="WARNING")
 
-        # If already off and timer not active, just clear prev attributes if they linger
         if main_sensor_current_state == "off" and self.last_alert_time is None:
             if self.prev_alert_final_attributes:
-                #self.log(f"{log_prefix} Sensor 'off', no timer active. Clearing stale prev_alert_final_attributes.", level="DEBUG")
                 self.prev_alert_final_attributes = None
             return
 
-        # If timer isn't running, nothing to reset
         if self.last_alert_time is None:
             return
 
-        # Check timer expiration and confirmation polls
         time_since_last_alert = now - self.last_alert_time
-        timer_expired = time_since_last_alert > self.timer_duration
-        # Require at least one poll confirming no active alerts
+        timer_expired = time_since_last_alert > self.current_timer_duration
         confirmed_idle = self.no_active_alerts_polls > 0
         can_reset = timer_expired and confirmed_idle
 
         if can_reset:
-            self.log(f"{log_prefix} Alert timer expired ({time_since_last_alert:.1f}s > {self.timer_duration}s) & confirmed idle ({self.no_active_alerts_polls} poll(s)). Resetting sensors.")
+            self.log(f"{log_prefix} Alert timer expired ({time_since_last_alert:.1f}s > {self.current_timer_duration}s). Resetting sensors.")
+            self.current_timer_duration = self.timer_duration # Reset back to normal
 
-            # --- 1. Save History Files (TXT/CSV) ---
-            if self.save_2_file and self.file_manager: # Check file_manager exists
+            if self.save_2_file and self.file_manager: 
                 if self.prev_alert_final_attributes:
                     last_alert_id = self.prev_alert_final_attributes.get('id', 'N/A')
                     self.log(f"{log_prefix} Saving history files (TXT/CSV) for last window (ID: {last_alert_id})...")
                     try:
-                        # Pass the last known attributes from the active window
                         self.file_manager.save_history_files(self.prev_alert_final_attributes)
                     except Exception as e:
                         self.log(f"{log_prefix} Error during save_history_files: {e}", level="ERROR", exc_info=True)
                 else:
                     self.log(f"{log_prefix} Cannot save history file on reset: prev_alert_final_attributes missing.", level="WARNING")
 
-            # --- 2. Format Previous State for the new 'off' state ---
             fallback_time_iso = datetime.now().isoformat(timespec='microseconds')
             formatted_prev = {}
-            last_alert_wa = "" # Keep last messages for display even when off
+            last_alert_wa = "" 
             last_alert_tg = ""
 
             if self.prev_alert_final_attributes:
-                # Use the stored final attributes from the window that just ended
                 prev_data = self.prev_alert_final_attributes
                 last_alert_wa = prev_data.get("alert_wa", "")
                 last_alert_tg = prev_data.get("alert_tg", "")
@@ -2065,88 +1821,59 @@ class Red_Alerts_Israel(Hass):
                     "prev_alerts_count": prev_data.get("alerts_count", 0)
                 }
             else:
-                # Fallback if somehow prev_alert_final_attributes is None
                 self.log(f"{log_prefix} Previous alert attributes missing during reset. Using defaults for 'prev_'.", level="WARNING")
                 formatted_prev = {
                     "prev_cat": 0, "prev_title": "", "prev_desc": "", "prev_areas": "", "prev_cities": [], "prev_data": "",
                     "prev_data_count": 0, "prev_duration": 0, "prev_last_changed": fallback_time_iso, "prev_alerts_count": 0
                 }
 
-            # --- 3. Clear Internal State Variables ---
-            self.prev_alert_final_attributes = None # Clear the stored attributes
-            self.last_alert_time = None # Stop the timer
-            self.last_processed_alert_id = None # Reset ID tracker
-            self.cities_past_window_std = set() # Clear accumulated cities
-            self.window_alerts_grouped = {} # Clear grouped data
-            self.alert_sequence_count = 0 # Reset sequence counter
-            self.no_active_alerts_polls = 0 # Reset idle poll counter
+            self.prev_alert_final_attributes = None 
+            self.last_alert_time = None 
+            self.last_processed_alert_id = None 
+            self.cities_past_window_std.clear() 
+            self.window_alerts_grouped.clear() 
+            self.alert_sequence_count = 0 
+            self.no_active_alerts_polls = 0 
 
-            # --- 4. Get Final History & Define Reset Attributes ---
             hist_attrs = self.history_manager.get_history_attributes()
             reset_attrs = {
                 "active_now": False, "special_update": False, "id": 0, "cat": 0, "title": "אין התרעות", "desc": "שגרה",
                 "areas": "", "cities": [], "data": "", "data_count": 0, "duration": 0,
                 "icon": "mdi:check-circle-outline", "emoji": "✅", "alerts_count": 0,
-                "last_changed": datetime.now().isoformat(timespec='microseconds'), # Time of reset
+                "last_changed": datetime.now().isoformat(timespec='microseconds'), 
                 "my_cities": sorted(list(set(self.city_names_config))),
-                **formatted_prev, # Include the 'prev_' state from the ended window
-                "alert_wa": last_alert_wa, # Persist last messages
-                "alert_tg": last_alert_tg, # Persist last messages
-                "script_status": "running" # Set status to idle
+                **formatted_prev, 
+                "alert_wa": last_alert_wa, "alert_tg": last_alert_tg, 
+                "script_status": "running" 
             }
 
-            # --- 5. Update HA States ---
             try:
-                # Note: This call will NOT update main_text because main_state="off"
                 await self._update_ha_state(
-                    main_state="off", city_state="off", text_state="אין התרעות", # text_state is ignored here
+                    main_state="off", city_state="off", text_state="אין התרעות", 
                     attributes=reset_attrs, text_icon="mdi:check-circle-outline"
                 )
             except Exception as e:
                 self.log(f"{log_prefix} Error during _update_ha_state call on reset: {e}", level="ERROR", exc_info=True)
 
-            # --- 6. Re-affirm History Sensor States ---
-            # Ensure history sensors reflect the final state from hist_attrs
             try:
                 count_cities = len(hist_attrs.get("cities_past_24h", []))
                 count_alerts = len(hist_attrs.get("last_24h_alerts", []))
-                tasks = []
-
-                hist_cities_attrs = {
-                    "cities_past_24h": hist_attrs.get("cities_past_24h", []),
-                    "script_status": "running"
-                }
-                tasks.append(self.set_state(self.history_cities_sensor, state=str(count_cities), attributes=hist_cities_attrs))
-
-                history_list_attr = {
-                    "last_24h_alerts": hist_attrs.get("last_24h_alerts", []),
-                    "script_status": "running"
-                }
-
-                tasks.append(self.set_state(self.history_list_sensor, state=str(count_alerts), attributes=history_list_attr))
-
-                history_group_attr = {
-                    "last_24h_alerts_group": hist_attrs.get("last_24h_alerts_group", {}),
-                    "script_status": "running"
-                }
-
-                tasks.append(self.set_state(self.history_group_sensor, state=str(count_alerts), attributes=history_group_attr))
-
+                tasks = [
+                    self.set_state(self.history_cities_sensor, state=str(count_cities), attributes={"cities_past_24h": hist_attrs.get("cities_past_24h", []), "script_status": "running"}),
+                    self.set_state(self.history_list_sensor, state=str(count_alerts), attributes={"last_24h_alerts": hist_attrs.get("last_24h_alerts", []), "script_status": "running"}),
+                    self.set_state(self.history_group_sensor, state=str(count_alerts), attributes={"last_24h_alerts_group": hist_attrs.get("last_24h_alerts_group", {}), "script_status": "running"})
+                ]
                 if tasks:
                     results = await asyncio.gather(*tasks, return_exceptions=True)
             except Exception as e:
                 self.log(f"{log_prefix} Error re-affirming history sensors: {e}", level="ERROR", exc_info=True)
 
-            # --- 7. Update GeoJSON Files for Idle State ---
             if self.save_2_file:
                 try:
-                    # Save History GeoJSON with the final history data from hist_attrs
                     await self._save_history_geojson(hist_attrs)
-
-                    # Save Latest GeoJSON with idle/empty data based on reset_attrs
                     idle_geojson_attrs = {
                         "title": reset_attrs["title"], "desc": reset_attrs["desc"],
-                        "cat": reset_attrs["cat"], "cities": [], # Empty list for idle
+                        "cat": reset_attrs["cat"], "cities": [], 
                         "last_changed": reset_attrs["last_changed"]
                     }
                     await self._save_latest_geojson(idle_geojson_attrs)
@@ -2156,29 +1883,21 @@ class Red_Alerts_Israel(Hass):
             self.log(f"{log_prefix} Sensor reset complete. State is now 'off'.")
 
         elif timer_expired and not confirmed_idle:
-            # Timer has run out, but the last poll still showed an alert (or poll failed)
-            # Don't reset yet, wait for a poll cycle that confirms no active alerts.
             self.log(f"{log_prefix} Timer expired ({time_since_last_alert:.1f}s > {self.timer_duration}s), but last poll was not confirmed idle ({self.no_active_alerts_polls}). Awaiting confirmation poll.", level="DEBUG")
 
     async def _update_ha_state(self, main_state, city_state, text_state, attributes, text_icon="mdi:information"):
         """Updates the state and attributes of core HA entities."""
         attributes = attributes or {}
-        # Ensure last_changed and script_status are always set/updated
         attributes["last_changed"] = datetime.now().isoformat(timespec='microseconds')
-        # Determine status based on main state
-        attributes["script_status"] = "running" #if main_state == "on" else "idle"
-        #pre_alert = True if attributes["cat"] == 13 and "חדירת מחבלים" not in attributes["title"] else False :"שהייה בסמיכות למרחב מוגן"
+        attributes["script_status"] = "running" 
         title_alert = attributes.get("title", "")
-        #pre_alert = True if "בדקות הקרובות" in title_alert or "עדכון" in title_alert or title_alert == "שהייה בסמיכות למרחב מוגן" else False
-        pre_alert = "שהייה בסמיכות למרחב מוגן" == title_alert or any(
-                phrase in title_alert for phrase in ["בדקות הקרובות", "עדכון"])
+        pre_alert = "שהייה בסמיכות למרחב מוגן" == title_alert or any(phrase in title_alert for phrase in ["בדקות הקרובות", "עדכון"])
 
         update_tasks = []
         log_prefix = "[HA Update]"
 
-        # --- Prepare Main Sensor Update ---
         try:
-            main_attrs = attributes.copy() # Use a copy for each sensor
+            main_attrs = attributes.copy() 
             update_tasks.append(self.set_state(self.main_sensor, state=main_state, attributes=main_attrs))
             if pre_alert:
                 update_tasks.append(self.set_state(self.main_sensor_pre_alert, state=main_state, attributes=main_attrs))
@@ -2188,9 +1907,8 @@ class Red_Alerts_Israel(Hass):
         except Exception as e:
             self.log(f"{log_prefix} Error preparing task for {self.main_sensor}: {e}", level="ERROR")
 
-        # --- Prepare City Sensor Update ---
         try:
-            city_attrs = attributes.copy() # Use a copy for each sensor
+            city_attrs = attributes.copy() 
             update_tasks.append(self.set_state(self.city_sensor, state=city_state, attributes=city_attrs))
             if pre_alert:
                 update_tasks.append(self.set_state(self.city_sensor_pre_alert, state=city_state, attributes=main_attrs))
@@ -2200,13 +1918,9 @@ class Red_Alerts_Israel(Hass):
         except Exception as e:
             self.log(f"{log_prefix} Error preparing task for {self.city_sensor}: {e}", level="ERROR")
 
-
-        # --- Prepare Input Text Update ---
         try:
-            # Only update input_text if main_state is 'on'
             if main_state == "on":
                 safe_text_state = text_state[:255] if isinstance(text_state, str) else "Error"
-                # Optional: Check if text differs from current state to avoid redundant updates
                 current_text_state = await self.get_state(self.main_text)
                 if safe_text_state != current_text_state:
                     update_tasks.append(self.set_state(self.main_text, state=safe_text_state, attributes={"icon": text_icon}))
@@ -2214,25 +1928,16 @@ class Red_Alerts_Israel(Hass):
         except Exception as e:
             self.log(f"{log_prefix} Error preparing/checking task for {self.main_text}: {e}", level="ERROR")
 
-        # --- Execute Updates ---
         if update_tasks:
-            #self.log(f"{log_prefix} Executing {len(update_tasks)} state update tasks...", level="DEBUG")
             try:
                 results = await asyncio.gather(*update_tasks, return_exceptions=True)
-                # Log any exceptions that occurred during the gather
-                errors_found = False
                 for i, result in enumerate(results):
                     if isinstance(result, Exception):
-                        errors_found = True
-                        # Try to identify which task failed based on order (simplistic)
                         failed_entity_desc = f"Task {i+1}"
                         if i == 0: failed_entity_desc = self.main_sensor
                         elif len(update_tasks) > 1 and i == 1: failed_entity_desc = self.city_sensor
                         elif len(update_tasks) > 2 and i == 2: failed_entity_desc = self.main_text
-
-                        self.log(f"{log_prefix} Error during HA state update task for {failed_entity_desc}: {result}", level="ERROR", exc_info=False) # Set exc_info=False for cleaner logs unless needed
-                # if not errors_found: # Reduce log noise
-                    # self.log(f"{log_prefix} State update tasks completed successfully.", level="DEBUG")
+                        self.log(f"{log_prefix} Error during HA state update task for {failed_entity_desc}: {result}", level="ERROR", exc_info=False) 
 
             except Exception as e:
                 self.log(f"{log_prefix} Unexpected error executing HA state updates via asyncio.gather: {e}", level="ERROR", exc_info=True)
@@ -2242,27 +1947,22 @@ class Red_Alerts_Israel(Hass):
         """Fetches alerts from API, processes them, or checks for sensor reset."""
         log_prefix = "[Poll Cycle]"
 
-        # --- Poll Live API ---
         live_data = None
         api_error = False
         try:
             live_data = await self.api_client.get_live_alerts()
         except Exception as e:
             self.log(f"{log_prefix} Error fetching live alerts from Oref API: {e}", level="WARNING")
-            live_data = None # Ensure it's None on error
-            api_error = True # Flag that we couldn't get data
+            live_data = None 
+            api_error = True 
 
-        # --- Process API Response ---
         try:
-            # Check if the response contains valid alert data ('data' field non-empty is key)
             is_alert_active = isinstance(live_data, dict) and live_data.get("data")
 
             if is_alert_active:
-                # self.log(f"{log_prefix} Active alert detected in payload.", level="DEBUG")
-                self.no_active_alerts_polls = 0 # Reset idle poll counter
+                self.no_active_alerts_polls = 0 
                 await self._process_active_alert(live_data, is_test=False)
 
-                # If a real alert comes during a test window, cancel the test
                 if self.test_alert_cycle_flag > 0:
                     self.log(f"{log_prefix} Real alert detected during active test window. Cancelling test mode.", level="INFO")
                     self.test_alert_cycle_flag = 0
@@ -2270,11 +1970,10 @@ class Red_Alerts_Israel(Hass):
                     try:
                         if await self.get_state(self.activate_alert) == "on":
                             await self.call_service("input_boolean/turn_off", entity_id=self.activate_alert)
-                            #self.log(f"{log_prefix} Turned off test input_boolean due to real alert interruption.", level="DEBUG")
                     except Exception as e_bool:
                         self.log(f"{log_prefix} Error turning off test boolean after interruption: {e_bool}", level="WARNING")
 
-            else:  # --- No Active Alert Found in Payload OR API Error ---
+            else:  
                 if not api_error:
                     self.no_active_alerts_polls += 1
                 else:
@@ -2282,12 +1981,11 @@ class Red_Alerts_Israel(Hass):
 
                 # --- Efficient History Update on Idle Poll ---
                 try:
-                    # Recalculate history attributes based on the current time
-                    current_hist_attrs = self.history_manager.get_history_attributes()
+                    # ONLY update if pruning actually removed old items
+                    if self.history_manager._prune_and_limit():
+                        self.log(f"{log_prefix} Old alerts aged out. Updating history sensors.", level="DEBUG")
+                        current_hist_attrs = self.history_manager.get_history_attributes()
 
-                    # Only update HA sensors if the history has actually changed
-                    if isinstance(current_hist_attrs, dict) and current_hist_attrs != self.last_history_attributes_cache:
-                        self.log(f"{log_prefix} History data has changed. Updating sensors.", level="DEBUG")
                         count_alerts = len(current_hist_attrs.get("last_24h_alerts", []))
                         tasks = [
                             self.set_state(self.history_cities_sensor, state=str(len(current_hist_attrs.get("cities_past_24h", []))), attributes={"cities_past_24h": current_hist_attrs["cities_past_24h"], "script_status": "running"}),
@@ -2298,14 +1996,11 @@ class Red_Alerts_Israel(Hass):
                             tasks.append(self._save_history_geojson(current_hist_attrs))
                         
                         await asyncio.gather(*tasks, return_exceptions=True)
-                        
-                        # Update the cache with the new data
                         self.last_history_attributes_cache = current_hist_attrs
-                    
+                        
                 except Exception as e:
                     self.log(f"{log_prefix} Error updating history sensors during idle poll: {e}", level="ERROR", exc_info=True)
 
-                # --- Handle Test Window Expiration & Sensor Reset ---
                 if self.test_alert_cycle_flag > 0:
                     if time.time() - self.test_alert_start_time >= self.timer_duration:
                         self.log(f"{log_prefix} Test alert timer expired. Ending test window.", level="INFO")
@@ -2313,13 +2008,9 @@ class Red_Alerts_Israel(Hass):
                         self.test_alert_start_time = 0
                         await self._check_reset_sensors()
                     else:
-                        # Test window is still active, so we don't check for a normal reset.
-                        # We've already handled the history update above.
                         return 
                 else:
-                    # No test is active, so check for a normal sensor reset.
                     await self._check_reset_sensors()
-
 
         except Exception as e:
             self.log(f"{log_prefix} Error in poll_alerts processing/reset logic: {e}", level="ERROR", exc_info=True)
@@ -2327,8 +2018,6 @@ class Red_Alerts_Israel(Hass):
                 self.log(f"{log_prefix} Clearing test flag due to error.", level="WARNING")
                 self.test_alert_cycle_flag = 0
 
-
-    # --- Test Alert Handling ---
     def _test_boolean_callback(self, entity, attribute, old, new, kwargs):
         """Callback when the test input_boolean is turned on."""
         if new == 'on':
@@ -2343,21 +2032,18 @@ class Red_Alerts_Israel(Hass):
             except Exception: pass
             return
 
-        # --- Check if a real alert is already active ---
         current_state = await self.get_state(self.main_sensor)
-        if current_state == 'on' and self.test_alert_cycle_flag == 0: # Ensure not already in test mode
+        if current_state == 'on' and self.test_alert_cycle_flag == 0: 
             self.log(f"{log_prefix} Cannot start test alert: A real alert is currently active.", level= "WARNING")
             try: await self.call_service("input_boolean/turn_off", entity_id=self.activate_alert)
             except Exception: pass
             return
 
-        # --- Start Test Sequence ---
-        self.test_alert_cycle_flag = 1 # Mark test as active
+        self.test_alert_cycle_flag = 1 
         self.test_alert_start_time = time.time()
         self.log(f"--- {log_prefix} Initiating Test Alert Sequence ---", level="WARNING")
 
         test_cities_orig = []
-        # Use the validated standardized list to find original names
         if self.city_names_self_std:
             found_cities = []
             missing_cities = []
@@ -2372,25 +2058,23 @@ class Red_Alerts_Israel(Hass):
             if missing_cities:
                 self.log(f"{log_prefix} Using configured cities for test. Lamas lookup missing for: {missing_cities}", level="DEBUG")
 
-        else: # No cities configured
+        else: 
             default_test_city = "תל אביב - מרכז העיר"
             self.log(f"{log_prefix} No valid 'city_names' configured. Using default '{default_test_city}' for test.", level="WARNING")
             test_cities_orig = [default_test_city]
 
-        if not test_cities_orig: # Should not happen with default, but safety check
+        if not test_cities_orig: 
             test_cities_orig = ["תל אביב - מרכז העיר"]
             self.log(f"{log_prefix} Test city list was empty after processing, using fallback: {test_cities_orig}", level="WARNING")
 
-        # Construct the test data payload
         test_alert_data = {
-            "id": int(time.time() * 1000), # Use timestamp ms as unique ID
-            "cat": "1", # Default category 1
-            "title": "ירי רקטות וטילים (התרעת בדיקה)", # Test title
-            "data": test_cities_orig, # List of original city names
-            "desc": "התרעת בדיקה - כנסו למרחב המוגן לזמן קצר לבדיקה" # Test description
+            "id": int(time.time() * 1000), 
+            "cat": "1", 
+            "title": "ירי רקטות וטילים (התרעת בדיקה)", 
+            "data": test_cities_orig, 
+            "desc": "התרעת בדיקה - כנסו למרחב המוגן לזמן קצר לבדיקה" 
         }
 
-        # Process this fake alert data using the main processing function
         try:
             await self._process_active_alert(test_alert_data, is_test=True)
         except Exception as test_proc_err:
@@ -2399,7 +2083,6 @@ class Red_Alerts_Israel(Hass):
             self.test_alert_start_time = 0
 
         try:
-            # Check state again in case it was turned off manually during processing
             if await self.get_state(self.activate_alert) == 'on':
                 await self.call_service("input_boolean/turn_off", entity_id=self.activate_alert)
                 self.log(f"{log_prefix} Test alert processed. Turned off input_boolean: {self.activate_alert}", level="INFO")
@@ -2430,7 +2113,6 @@ class Red_Alerts_Israel(Hass):
             self.log("Skipping History GeoJSON save: History attributes missing or invalid.", level="WARNING")
             return
         try:
-            # Generate history GeoJSON data (needs last_24h_alerts from history_attributes)
             history_geojson_data = self._generate_geojson_data(history_attributes, duration="history")
             path = self.file_paths.get("geojson_history")
             if path:
@@ -2443,52 +2125,47 @@ class Red_Alerts_Israel(Hass):
     def _generate_geojson_data(self, attributes, duration="latest"):
         """Generates the GeoJSON structure (FeatureCollection)."""
         geo = {"type": "FeatureCollection", "features": []}
-        attrs = attributes or {} # Ensure attributes is a dict
-        locations = {} # Key: "lat,lon", Value: {"coords": [lon, lat], "cities": set(), "details": []}
-        unknown_cities_logged = set() # Track warnings per call
+        attrs = attributes or {} 
+        locations = {} 
+        unknown_cities_logged = set() 
 
         if duration == "latest":
-            # Uses 'cities' from attributes (accumulated list of original names)
             cities_to_process = attrs.get("cities", [])
-            # Use latest alert info from attributes for properties
             alert_title = attrs.get("title", "אין התרעות")
             timestamp_str = attrs.get("last_changed", datetime.now().isoformat(timespec='microseconds'))
             category = attrs.get("cat", 0)
             description = attrs.get("desc", "")
 
-            if not cities_to_process: return geo # Return empty structure if no cities
+            if not cities_to_process: return geo 
 
-            # Map cities to coordinates
             for city_display_name in cities_to_process:
                 if not isinstance(city_display_name, str) or not city_display_name.strip(): continue
                 std = standardize_name(city_display_name)
-                if not std: continue # Skip if name becomes empty after standardization
+                if not std: continue 
                 det = self.lamas_manager.get_city_details(std)
 
                 if det and "lat" in det and "long" in det:
                     try:
                         lat, lon = float(det["lat"]), float(det["long"])
-                        key = f"{lat},{lon}" # Use coords as key
+                        key = f"{lat},{lon}" 
                         if key not in locations:
                             locations[key] = {"coords": [lon, lat], "cities": set()}
-                        locations[key]["cities"].add(city_display_name) # Add original name
+                        locations[key]["cities"].add(city_display_name) 
                     except (ValueError, TypeError) as e:
-                        if std not in unknown_cities_logged: # Log coord error only once per city
+                        if std not in unknown_cities_logged: 
                             self.log(f"GeoJSON ({duration}): Invalid coords for '{city_display_name}': {e}", level="WARNING")
                             unknown_cities_logged.add(std)
-                elif std not in unknown_cities_logged: # Log missing city/coords only once
+                elif std not in unknown_cities_logged: 
                     reason = "Not found in Lamas" if not det else "Missing coords"
-                    self.log(f"GeoJSON ({duration}): SKIP city '{city_display_name}' (std: '{std}'). Reason: {reason}.", level="DEBUG") # Lowered level
+                    self.log(f"GeoJSON ({duration}): SKIP city '{city_display_name}' (std: '{std}'). Reason: {reason}.", level="DEBUG") 
                     unknown_cities_logged.add(std)
 
-            # Create features from aggregated locations
             if locations:
                 icon_mdi, emoji = ICONS_AND_EMOJIS.get(category, ("mdi:alert", "❗"))
                 for key, loc_data in locations.items():
                     city_names_at_point = sorted(list(loc_data["cities"]))
-                    # Create properties for the map point
                     props = {
-                        "name": ", ".join(city_names_at_point), # All cities at this coord
+                        "name": ", ".join(city_names_at_point), 
                         "icon": icon_mdi,
                         "label": emoji,
                         "description": f"{alert_title}\n{description}\n({timestamp_str})",
@@ -2503,14 +2180,12 @@ class Red_Alerts_Israel(Hass):
                     })
 
         elif duration == "history":
-            # Uses 'last_24h_alerts' from attributes (list of dicts with string times)
             history_list = attrs.get("last_24h_alerts", [])
-            if not history_list: return geo # Return empty structure
+            if not history_list: return geo 
 
-            # Aggregate historical alerts by location
             for alert in history_list:
                 if not isinstance(alert, dict): continue
-                city_display_name = alert.get("city") # History should store original name
+                city_display_name = alert.get("city") 
                 if not city_display_name or not isinstance(city_display_name, str): continue
 
                 std = standardize_name(city_display_name)
@@ -2523,9 +2198,7 @@ class Red_Alerts_Israel(Hass):
                         key = f"{lat},{lon}"
                         if key not in locations:
                             locations[key] = {"coords": [lon, lat], "cities": set(), "details": []}
-                        # Store the raw alert dict for this location
                         locations[key]["details"].append(alert)
-                        # Also keep track of unique city names at this location
                         locations[key]["cities"].add(city_display_name)
                     except (ValueError, TypeError) as e:
                         if std not in unknown_cities_logged:
@@ -2533,30 +2206,26 @@ class Red_Alerts_Israel(Hass):
                             unknown_cities_logged.add(std)
                 elif std not in unknown_cities_logged:
                     reason = "Not found in Lamas" if not det else "Missing coords"
-                    self.log(f"GeoJSON ({duration}): SKIP hist city '{city_display_name}' (std: '{std}'). Reason: {reason}.", level="DEBUG") # Lowered level
+                    self.log(f"GeoJSON ({duration}): SKIP hist city '{city_display_name}' (std: '{std}'). Reason: {reason}.", level="DEBUG") 
                     unknown_cities_logged.add(std)
 
-            # Create features from aggregated historical locations
             if locations:
-                icon_mdi, emoji = ("mdi:history", "📜") # Use history icon
+                icon_mdi, emoji = ("mdi:history", "📜") 
                 for key, loc_data in locations.items():
-                    if not loc_data.get("details"): continue # Skip if no details somehow
+                    if not loc_data.get("details"): continue 
 
-                    # Find the latest alert event *at this specific coordinate point*
                     try:
                         latest_alert_at_loc = max(
                             loc_data["details"],
-                            # Use _parse_datetime_str for robust parsing, fallback to epoch min
-                            key=lambda x: self._parse_datetime_str(x.get("time", "")) or datetime.min
+                            key=lambda x: parse_datetime_str(x.get("time", ""), self.log) or datetime.min
                         )
                     except (ValueError, TypeError) as max_err:
                         self.log(f"GeoJSON ({duration}): Error finding latest alert time for location {key}: {max_err}", level="WARNING")
-                        continue # Skip this feature if time parsing fails
+                        continue 
 
                     city_names_at_point = sorted(list(loc_data["cities"]))
-                    alert_time_str = latest_alert_at_loc.get('time', 'N/A') # String time 'YYYY-MM-DD HH:MM:SS'
+                    alert_time_str = latest_alert_at_loc.get('time', 'N/A') 
                     alert_count = len(loc_data['details'])
-                    # Create description string
                     desc = f"{latest_alert_at_loc.get('title', 'התרעה היסטורית')}\n" \
                         f"{', '.join(city_names_at_point)}\n" \
                         f"זמן אחרון: {alert_time_str}\n" \
@@ -2569,7 +2238,7 @@ class Red_Alerts_Israel(Hass):
                         "label": emoji,
                         "description": desc,
                         "alert_count_at_location": alert_count,
-                        "latest_alert_time": alert_time_str # Include time string
+                        "latest_alert_time": alert_time_str 
                     }
                     geo["features"].append({
                         "type": "Feature",
@@ -2586,62 +2255,49 @@ class Red_Alerts_Israel(Hass):
         """Formats data loaded from JSON backup into the 'prev_*' attribute structure."""
         if not isinstance(data, dict):
             self.log("Backup data is not a dictionary, cannot format.", level="WARNING")
-            return {} # Return empty if data is invalid
+            return {} 
 
-        # Extract data safely with defaults
-        cat_str = data.get('cat', '0') # Expect string from backup? Check save format.
+        cat_str = data.get('cat', '0') 
         cat = int(cat_str) if isinstance(cat_str, str) and cat_str.isdigit() else 0
         title = data.get('title', '')
-        # Backup 'data' key holds list of city names (should be original names)
         raw_cities_data = data.get('data', [])
         cities_from_backup = []
 
-        # Handle potential format variations in backup 'data' field
         if isinstance(raw_cities_data, str):
-            # If it was mistakenly saved as a comma-separated string
             cities_from_backup = [c.strip() for c in raw_cities_data.split(',') if c.strip()]
         elif isinstance(raw_cities_data, list):
-            # If it's already a list (preferred)
-            cities_from_backup = [str(c) for c in raw_cities_data if isinstance(c, (str, int))] # Ensure strings
+            cities_from_backup = [str(c) for c in raw_cities_data if isinstance(c, (str, int))] 
 
         desc = data.get('desc', '')
-        # Use _is_iso_format to ensure consistency, check both possible keys
         last = self._is_iso_format(data.get('last_changed', data.get('alertDate', '')))
-        # Recalculate duration from description
         dur = self.alert_processor.extract_duration_from_desc(desc) if self.alert_processor else 0
 
-        # Reconstruct areas and original city names from the backup city list
         areas_set = set()
-        orig_cities_set = set(cities_from_backup) # Start with the names from backup
-        unknown_cities_logged = set() # Track warnings
+        orig_cities_set = set(cities_from_backup) 
+        unknown_cities_logged = set() 
 
-        # Refine using Lamas if possible
-        if self.lamas_manager: # Check if LamasManager is initialized
+        if self.lamas_manager: 
             refined_orig_cities = set()
             for city_name_from_backup in cities_from_backup:
                 if not city_name_from_backup: continue
                 std = standardize_name(city_name_from_backup)
                 if not std:
-                    refined_orig_cities.add(city_name_from_backup) # Keep original if std fails
+                    refined_orig_cities.add(city_name_from_backup) 
                     continue
 
                 det = self.lamas_manager.get_city_details(std)
                 if det:
                     areas_set.add(det.get("area", DEFAULT_UNKNOWN_AREA))
-                    # Prefer original name from Lamas if available
                     refined_orig_cities.add(det.get("original_name", city_name_from_backup))
                 else:
-                    # City not found in Lamas - use default area and the name from backup
                     areas_set.add(DEFAULT_UNKNOWN_AREA)
                     refined_orig_cities.add(city_name_from_backup)
                     if std not in unknown_cities_logged:
-                        #self.log(f"Backup Format: City '{city_name_from_backup}' (std: '{std}') not in Lamas. Area='{DEFAULT_UNKNOWN_AREA}'.", level="DEBUG")
                         unknown_cities_logged.add(std)
-            orig_cities_set = refined_orig_cities # Update with refined names
+            orig_cities_set = refined_orig_cities 
 
         sorted_orig_cities = sorted(list(orig_cities_set))
         areas_str = ", ".join(sorted(list(areas_set))) if areas_set else ""
-        # 'prev_data' should be the comma-separated string of *original* names
         prev_data_str = ", ".join(sorted_orig_cities)
 
         return {
@@ -2649,10 +2305,11 @@ class Red_Alerts_Israel(Hass):
             "prev_title": title,
             "prev_desc": desc,
             "prev_areas": areas_str,
-            "prev_cities": sorted_orig_cities, # List of original city names
-            "prev_data": prev_data_str,        # Comma-separated string of original cities
+            "prev_cities": sorted_orig_cities, 
+            "prev_data": prev_data_str,        
             "prev_data_count": len(sorted_orig_cities),
             "prev_duration": dur,
-            "prev_last_changed": last, # ISO formatted time string
-            "prev_alerts_count": data.get('alerts_count', 0) # Get backup count, default 0
+            "prev_last_changed": last, 
+            "prev_alerts_count": data.get('alerts_count', 0) 
         }
+
