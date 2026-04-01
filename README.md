@@ -2,6 +2,7 @@
 ***Not Official Pikud Ha-Oref***
 
 > Simple rocket-alert monitoring for Home Assistant via AppDaemon
+<img width="702" height="534" alt="image" src="https://github.com/user-attachments/assets/13f21e98-7ed7-4b88-badb-b9ba7ae7b005" />
 
 Red Alerts Israel is an AppDaemon application for Home Assistant that connects to the official Israeli Home Front Command (Pikud HaOref) API. It fetches real-time "Tzeva Adom" rocket alerts and other hazards, making this information available via easy-to-use Home Assistant sensors.
 
@@ -76,6 +77,7 @@ When any of the six binary sensors are updated, they receive the *same* set of a
 | Attribute name      | Description                                                                                                                                                                                               | Example                                    |
 | :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------- |
 | `active_now`        | `true` when `binary_sensor.YOUR_SENSOR_NAME` is `on`, `false` when `off`. Mirrors the main sensor state.                                                                                                     | `false`                                    |
+| `map_url`	| Dynamic Smart Map URL. Cumulative visual of the last 15 min. Orange = Pre-Alert, Red = Threat, Green = Clearance.	 | `https://static-maps...` |
 | `script_status`     | The operational status of the AppDaemon script (`initializing`, `running`, `error`, `terminated`). Useful for monitoring the script itself.                                                                | `running`                                  |
 | `id`                | Unique ID of the *latest* alert payload received during the current window.                                                                                                                               | `1721993400123456`                         |
 | `cat`               | Category number (0-14) of the *latest* alert payload. Corresponds to alert type (e.g., 1 for rockets, 13 for special update).                                                                            | `1`                                        |
@@ -325,7 +327,7 @@ These attributes reflect the *current state of the alert window* since the senso
 | `special_update`    | `true` if the *latest* alert payload is a "special update" from Pikud HaOref, `false` otherwise.                                                                                                          | `false`                                    |
 | `areas`             | Comma-separated string of *all areas* affected by *any payload* within the current active window.                                                                                                         | `גוש דן, קו העימות`                        |
 | `cities`            | A sorted list of all unique original city names affected by *any payload* within the current active window.                                                                                             | `['אור יהודה', 'תל אביב - מרכז העיר']`    |
-| `data`              | Comma-separated string of all unique original city names affected during the current active window. May be truncated if very long.                                                                      | `אור יהודה, תל אביב - מרכז העיר, חולון...` |
+| `data`              | Comma-separated string of all unique original city names affected during the current active window. May be cut if very long.                                                                      | `אור יהודה, תל אביב - מרכז העיר, חולון...` |
 | `data_count`        | Count of unique original city names affected during the current active window.                                                                                                                            | `5`                                        |
 | `duration`          | Recommended duration (in seconds) to stay in a safe room, extracted from the `desc` of the *latest* alert payload.                                                                                       | `600`                                      |
 | `icon`              | MDI icon string based on the `cat` of the *latest* alert payload.                                                                                                                                         | `mdi:rocket-launch`                        |
@@ -423,9 +425,7 @@ If the `event` parameter is set to `True` (default), the script fires a native H
 
 The event name is `YOUR_SENSOR_NAME_event`. You can see these events in Home Assistant's Developer Tools > Events section by subscribing to `YOUR_SENSOR_NAME_event`.
 
-<details>
-<summary>Home Assistant Event Data Structure & Example Automation</summary>
-
+### >Home Assistant Event Data Structure & Example Automation
 The data payload associated with the `YOUR_SENSOR_NAME_event` is a dictionary containing detailed information about the *specific alert payload* that triggered the event:
 
 | Key            | Type     | Description                                                                                                                                   | Example Value                         |
@@ -439,6 +439,32 @@ The data payload associated with the `YOUR_SENSOR_NAME_event` is a dictionary co
 | `timestamp`    | string   | ISO formatted timestamp when the event was processed by the script.                                                                           | `"2024-07-25T10:30:00.123456"`        |
 | `alerts_count` | integer  | The sequence number of this alert *payload* within the current active alert window. This count resets when the main binary sensor goes `off`. | `1` (for the first in a window) or `3` |
 | `is_test`      | boolean  | `True` if this event was triggered by the test input_boolean, `False` for real alerts from the API.                                           | `False`                               |
+
+
+**Mobile Notification with Rich Map (Push)**
+
+Sends a notification with the dynamic map image directly to your phone:
+
+<img width="326" height="645" alt="image" src="https://github.com/user-attachments/assets/a3ea0992-6d70-499e-9325-99960d480fe0" />
+<img width="326" height="645" alt="image" src="https://github.com/user-attachments/assets/4033355c-f8ce-4de9-872b-bc5bf545ad1f" />
+
+
+```yaml
+alias: Notify Red Alert with Map
+trigger:
+  - platform: state
+    entity_id: binary_sensor.red_alert
+    from: "off"
+    to: "on"
+action:
+  - action: notify.mobile_app_your_device
+    data:
+      title: "{{ state_attr('binary_sensor.red_alert', 'title') }}"
+      message: >
+        {{ state_attr('binary_sensor.red_alert', 'data_count') }} ישובים ב{{ state_attr('binary_sensor.red_alert', 'areas') }}.
+      data:
+        image: "{{ state_attr('binary_sensor.red_alert', 'map_url') }}"
+```
 
 **Example Automation Triggering on the Event:**
 
@@ -489,7 +515,6 @@ automation:
 
       # Add other actions like turning on lights, etc.
 ```
-</details>
 
 ### MQTT Events
 
