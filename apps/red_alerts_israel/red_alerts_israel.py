@@ -1935,7 +1935,10 @@ class Red_Alerts_Israel(Hass):
         title_alert = attributes.get("title", "")
         
         is_clearance = "האירוע הסתיים" in title_alert
-        pre_alert = "בדקות הקרובות" in title_alert or "עדכון" in title_alert or "שהייה בסמיכות" in title_alert
+        is_pre = "בדקות הקרובות" in title_alert or "עדכון" in title_alert or "שהייה בסמיכות" in title_alert
+
+        current_cities_in_payload = attributes.get("cities", []) 
+        city_in_current_payload = any(c in self.city_names_config for c in current_cities_in_payload)
 
         update_tasks = []
         log_prefix = "[HA Update]"
@@ -1947,7 +1950,7 @@ class Red_Alerts_Israel(Hass):
             if is_clearance:
                 update_tasks.append(self.set_state(self.main_sensor_active_alert, state="off", attributes=main_attrs))
                 update_tasks.append(self.set_state(self.main_sensor_pre_alert, state="off", attributes=main_attrs))
-            elif pre_alert:
+            elif is_pre:
                 update_tasks.append(self.set_state(self.main_sensor_pre_alert, state=main_state, attributes=main_attrs))
                 update_tasks.append(self.set_state(self.main_sensor_active_alert, state="off", attributes=main_attrs))
             else:
@@ -1963,12 +1966,12 @@ class Red_Alerts_Israel(Hass):
             if is_clearance:
                 update_tasks.append(self.set_state(self.city_sensor_active_alert, state="off", attributes=city_attrs))
                 update_tasks.append(self.set_state(self.city_sensor_pre_alert, state="off", attributes=city_attrs))
-            elif pre_alert:
-                update_tasks.append(self.set_state(self.city_sensor_pre_alert, state=city_state, attributes=city_attrs))
-                update_tasks.append(self.set_state(self.city_sensor_active_alert, state="off", attributes=city_attrs))
+            elif is_pre:
+                new_state = main_state if city_in_current_payload else "off"
+                update_tasks.append(self.set_state(self.city_sensor_pre_alert, state=new_state, attributes=city_attrs))
             else:
-                update_tasks.append(self.set_state(self.city_sensor_active_alert, state=city_state, attributes=city_attrs))
-                update_tasks.append(self.set_state(self.city_sensor_pre_alert, state="off", attributes=city_attrs))
+                new_state = main_state if city_in_current_payload else "off"
+                update_tasks.append(self.set_state(self.city_sensor_active_alert, state=new_state, attributes=city_attrs))
         except Exception as e:
             self.log(f"{log_prefix} Error preparing task for {self.city_sensor}: {e}", level="ERROR")
 
@@ -2361,88 +2364,134 @@ class Red_Alerts_Israel(Hass):
         }
 
     def generate_smart_alert_map(self, alert_segments, lamas_data):
-        """Generates map URL. Uses Polygons for areas and Points for single cities."""
-        COLORS = {"pre": "ff9800", "active": "f44336", "clear": "4caf50"}
-        MARKER_COLORS = {"pre": "or", "active": "rd", "clear": "gn"} 
+        """
+        Final Tactical Map Engine:
+        1. Priority Layering: Clear > Active > Pre.
+        2. Clustering with Containment Check: Prevents redundant polygons of the same color.
+        3. 3-Decimal Precision & Decimated Hull: Optimized for Yandex 2048 char limit.
+        """
+        import math
+        from collections import defaultdict
         
+        COLORS = {"pre": "ff9800", "active": "f44336", "clear": "4caf50"}
         yandex_paths = []
-        yandex_points = []
-        all_coords = []
+        all_coords_for_center = []
         ignore_list = ["ברחבי הארץ", "כל הארץ", "ישראל", "לא ידוע"]
 
         if not alert_segments:
-            return "https://static-maps.yandex.ru/1.x/?l=map&lang=he_IL&size=600,450&ll=34.8516,31.0461&z=7"
+            return "https://static-maps.yandex.ru/1.x/?l=map&lang=he_IL&size=600,450&ll=34.852,31.046&z=7"
 
-        type_coords = {} 
+        def is_point_in_poly(x, y, poly):
+            n = len(poly)
+            inside = False
+            if n < 3: return False
+            p1x, p1y = poly[0]
+            for i in range(n + 1):
+                p2x, p2y = poly[i % n]
+                if y > min(p1y, p2y):
+                    if y <= max(p1y, p2y):
+                        if x <= max(p1x, p2x):
+                            if p1y != p2y:
+                                xints = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                            if p1x == p2x or x <= xints:
+                                inside = not inside
+                p1x, p1y = p2x, p2y
+            return inside
+
+        merged_cities = defaultdict(set)
         for segment in alert_segments:
             seg_type = segment.get("type", "active")
-            cities = segment.get("cities", [])
-            filtered_cities = [c for c in cities if c not in ignore_list]
-            
-            if not filtered_cities and cities:
-                return "https://static-maps.yandex.ru/1.x/?l=map&lang=he_IL&size=600,450&ll=34.8516,31.0461&z=7"
+            for city in segment.get("cities", []):
+                if city not in ignore_list:
+                    merged_cities[seg_type].add(city)
 
+        coords_by_type = defaultdict(set)
+        for seg_type, cities in merged_cities.items():
             if lamas_data and "areas" in lamas_data:
-                if seg_type not in type_coords: type_coords[seg_type] = []
-                for area_name, cities_in_area in lamas_data["areas"].items():
-                    for city_name, data in cities_in_area.items():
-                        if city_name in filtered_cities and "lat" in data and "long" in data:
-                            p = (float(data["long"]), float(data["lat"]))
-                            type_coords[seg_type].append(p)
-                            all_coords.append(p)
+                for area_cities in lamas_data["areas"].values():
+                    for city_name in cities:
+                        if city_name in area_cities:
+                            d = area_cities[city_name]
+                            if "lat" in d and "long" in d:
+                                p = (float(d["long"]), float(d["lat"]))
+                                coords_by_type[seg_type].add(p)
+                                all_coords_for_center.append(p)
 
-        if not all_coords:
-            return "https://static-maps.yandex.ru/1.x/?l=map&lang=he_IL&size=600,450&ll=34.8516,31.0461&z=7"
+        if "clear" in coords_by_type:
+            coords_by_type["active"] -= coords_by_type["clear"]
+            coords_by_type["pre"] -= coords_by_type["clear"]
+        if "active" in coords_by_type:
+            coords_by_type["pre"] -= coords_by_type["active"]
 
-        def get_refined_clusters(coords, threshold=0.4):
-            clusters = []
-            for p in coords:
-                matched_clusters = []
-                for i, cluster in enumerate(clusters):
-                    if any(((p[0]-c[0])**2 + (p[1]-c[1])**2)**0.5 < threshold for c in cluster):
-                        matched_clusters.append(i)
-                if not matched_clusters:
-                    clusters.append([p])
-                else:
-                    new_cluster = [p]
-                    for idx in sorted(matched_clusters, reverse=True):
-                        new_cluster.extend(clusters.pop(idx))
-                    clusters.append(new_cluster)
-            return clusters
-
-        for seg_type, coords in type_coords.items():
-            color_hex = COLORS.get(seg_type, "f44336")
-            marker_style = MARKER_COLORS.get(seg_type, "rd")
-            unique_coords = list(set(coords)) 
-            clusters = get_refined_clusters(unique_coords)
+        DIST_THRESHOLD = 0.30
+        
+        for seg_type in ["pre", "active", "clear"]:
+            points = list(coords_by_type[seg_type])
+            if not points: continue
             
-            for cluster_points in clusters:
-                if len(cluster_points) >= 3:
-                    hull = get_convex_hull(cluster_points)
-                    path_str = ",".join([f"{p[0]},{p[1]}" for p in hull])
-                    path_str += f",{hull[0][0]},{hull[0][1]}" 
-                    yandex_paths.append(f"c:{color_hex}ff,f:{color_hex}66,w:3,{path_str}")
-                else:
-                    for lon, lat in cluster_points:
-                        yandex_points.append(f"{lon},{lat},pm2{marker_style}m")
+            clusters = []
+            for p in points:
+                found = False
+                for cluster in clusters:
+                    if any(math.sqrt((p[0]-cp[0])**2 + (p[1]-cp[1])**2) < DIST_THRESHOLD for cp in cluster):
+                        cluster.append(p)
+                        found = True
+                        break
+                if not found: clusters.append([p])
 
-        lons = [p[0] for p in all_coords]
-        lats = [p[1] for p in all_coords]
-        avg_lon, avg_lat = sum(lons)/len(lons), sum(lats)/len(lats)
-        lat_diff = max(lats) - min(lats)
-        lon_diff = max(lons) - min(lons)
-        
-        if lat_diff > 1.5: dynamic_zoom = 7
-        elif lat_diff > 0.6 or lon_diff > 0.6: dynamic_zoom = 8
-        elif len(all_coords) > 15: dynamic_zoom = 9
-        else: dynamic_zoom = 11
+            hulls_candidates = []
+            for cluster in clusters:
+                expanded = []
+                for lon, lat in cluster:
+                    for angle in range(0, 360, 72): 
+                        rad = math.radians(angle)
+                        expanded.append((lon + 0.015 * math.cos(rad), lat + 0.015 * math.sin(rad)))
+                h = get_convex_hull(expanded)
+                if h: hulls_candidates.append({'hull': h, 'cluster': cluster})
 
-        final_url = f"https://static-maps.yandex.ru/1.x/?l=map&lang=he_IL&size=600,450&ll={avg_lon},{avg_lat}&z={dynamic_zoom}"
+            hulls_candidates.sort(key=lambda x: len(x['cluster']), reverse=True)
+            
+            color_hex = COLORS.get(seg_type, "f44336")
+            final_type_paths = []
+
+            for i, data in enumerate(hulls_candidates):
+                is_contained = False
+                for j, target in enumerate(hulls_candidates):
+                    if i <= j: continue 
+                    
+                    c_lon = sum(p[0] for p in data['cluster']) / len(data['cluster'])
+                    c_lat = sum(p[1] for p in data['cluster']) / len(data['cluster'])
+                    
+                    if is_point_in_poly(c_lon, c_lat, target['hull']):
+                        is_contained = True
+                        break
+                
+                if not is_contained:
+                    hull = data['hull']
+                    if len(hull) > 12: hull = hull[::len(hull)//12 + 1]
+                    
+                    path_pts = [f"{round(p[0], 3)},{round(p[1], 3)}" for p in hull]
+                    path_pts.append(path_pts[0])
+                    final_type_paths.append(f"c:{color_hex}ff,f:{color_hex}66,w:2,{','.join(path_pts)}")
+
+            yandex_paths.extend(final_type_paths)
+
+        if not all_coords_for_center:
+            return "https://static-maps.yandex.ru/1.x/?l=map&lang=he_IL&size=600,450&ll=34.852,31.046&z=7"
+
+        lons, lats = [p[0] for p in all_coords_for_center], [p[1] for p in all_coords_for_center]
+        avg_lon, avg_lat = round(sum(lons)/len(lons), 3), round(sum(lats)/len(lats), 3)
+        lat_diff, lon_diff = max(lats)-min(lats), max(lons)-min(lons)
         
+        if lat_diff > 1.2 or lon_diff > 1.2: z = 7
+        elif lat_diff > 0.5 or lon_diff > 0.5: z = 8
+        elif lat_diff > 0.2 or lon_diff > 0.2: z = 9
+        elif lat_diff > 0.05 or lon_diff > 0.05: z = 10
+        else: z = 11
+
+        url = f"https://static-maps.yandex.ru/1.x/?l=map&lang=he_IL&size=600,450&ll={avg_lon},{avg_lat}&z={z}"
         if yandex_paths:
-            final_url += "&pl=" + "~".join(yandex_paths)
-        if yandex_points:
-            final_url += "&pt=" + "~".join(yandex_points)
-
-        return final_url
+            url += "&pl=" + "~".join(yandex_paths[:7])
+            
+        return url
         
